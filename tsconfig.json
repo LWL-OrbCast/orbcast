@@ -1,0 +1,18 @@
+{
+  "extends": "./frontend/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-native",
+    "noEmit": true
+  },
+  "include": [
+    "frontend/**/*.ts",
+    "frontend/**/*.tsx",
+    "frontend/.expo/types/**/*.ts",
+    "frontend/expo-env.d.ts"
+  ],
+  "exclude": [
+    "frontend/node_modules",
+    "frontend/android",
+    "frontend/ios"
+  ]
+}

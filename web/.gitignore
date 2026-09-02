@@ -1,0 +1,7 @@
+# HIP-4 Vite web client — never commit .env
+.env
+.env.local
+.env.*.local
+node_modules
+dist
+*.tsbuildinfo

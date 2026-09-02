@@ -1,0 +1,14 @@
+# Security headers for hosts that honor this file (Cloudflare Pages, Netlify).
+# The full Content-Security-Policy ships as a <meta> tag injected at build time
+# (see vite.config.ts) so it works on any static host; these are the directives
+# that only work as HTTP headers.
+#
+# If the site is served by nginx / Railway / another host instead, copy these
+# headers into that host's config.
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()

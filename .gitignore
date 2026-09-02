@@ -1,0 +1,113 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# IDE and editors
+.idea/
+.vscode/
+.cursor/
+
+# Dependencies
+node_modules/
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Production builds
+/build
+dist/
+dist
+
+# Secrets / credentials
+*token.json*
+*credentials.json*
+
+# Environment files — keep committed *.env.example templates
+*.env
+*.env.*
+!.env.example
+!**/.env.example
+
+## Firebase native config (download from your Firebase project; see examples)
+## During EAS cloud builds: keep these COMMENTED OUT (EAS skips gitignored files).
+## After the build queues, uncomment again so they stay out of public pushes.
+frontend/GoogleService-Info.plist
+frontend/google-services.json
+
+# Logs and debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dump.rdb
+
+# System files
+.DS_Store
+*.pem
+
+# Python
+__pycache__/
+*pyc*
+venv/
+.venv/
+
+# Development tools
+chainlit.md
+.chainlit
+.ipynb_checkpoints/
+.ac
+
+# Deployment
+.vercel
+
+# Data and databases
+agenthub/agents/youtube/db
+
+# Archive files and large assets
+**/*.zip
+**/*.tar.gz
+**/*.tar
+**/*.tgz
+*.pack
+*.deb
+*.dylib
+
+# Build caches
+.cache/
+
+# Mobile development
+android-sdk/
+
+# Local-only backend probe / smoke / e2e scripts (keep on disk; omit from public clone)
+backend/ur_probe_*.py
+backend/ur_smoke_*.py
+backend/ur_e2e_*.py
+backend/_probe_*.py
+backend/ur_*_probe.py
+backend/ur_webhook_test.py
+backend/ur_mint_test_urid.py
+backend/backfill_onboarding_emails.py
+backend/deploy_ambire_mantle.py
+
+# Local-only root probes / empty test stub (not frontend/scripts or workers/*/scripts)
+/tests/
+/scripts/
+
+# Local-only Robinhood lockup deploy (never push to origin or private)
+/lockup/
+
+# Leftover agent identity file — not used by Git (real config is ~/.gitconfig)
+/.gitconfig

@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@hip4": ["../frontend/src/lib/hip4.ts"],
+      "@hip4/catalog": ["../frontend/src/lib/marketCatalog.ts"],
+      "@hip4/endpoints": ["../frontend/src/lib/hlEndpoints.ts"],
+      "@hip4/runtime": ["../frontend/src/lib/hip4Runtime.ts"],
+      "@theme/colors": ["../frontend/src/theme/colors.ts"]
+    }
+  },
+  "include": ["src"]
+}

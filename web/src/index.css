@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f5f7f6;
+  --bg-2: #eef2f0;
+  --card: #ffffff;
+  --border: #e4eae6;
+  --text: #0f172a;
+  --text-2: #5b6770;
+  --text-3: #8a9590;
+  --accent: #22c55e;
+  --accent-dark: #16a34a;
+  --live: #ef4444;
+  --live-dark: #b91c1c;
+  --live-bg: #fee2e2;
+  --purple: #a78bfa;
+  --purple-light: #c4b5fd;
+  --danger: #f43f5e;
+  --yes: #22c55e;
+  --no: #a78bfa;
+  --ink: #0f172a;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* { box-sizing: border-box; }
+html, body, #root {
+  min-height: 100%;
+  margin: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+button { cursor: pointer; font: inherit; }
+a { color: inherit; text-decoration: none; }
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.card-shadow {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+/* Signature stamp buttons — same 3px hard offset as hypertrade.exchange / login. */
+.btn-stamp {
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 0 var(--ink);
+  border-radius: 12px;
+  font-weight: 800;
+  color: #f5f7f6;
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn-stamp:hover:not(:disabled),
+.btn-stamp:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+.btn-stamp:disabled {
+  opacity: 0.55;
+}
+.btn-yes {
+  background: var(--yes);
+}
+.btn-no {
+  background: var(--no);
+}
+.btn-primary {
+  background: linear-gradient(90deg, var(--yes) 0%, var(--purple) 100%);
+}
+.btn-ghost-stamp {
+  background: #fff;
+  color: var(--ink);
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.page-enter {
+  animation: page-enter 180ms ease-out;
+}
+
+@keyframes skel {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.skel {
+  background: linear-gradient(90deg, var(--bg-2) 0%, #e4ebe7 45%, var(--bg-2) 90%);
+  background-size: 200% 100%;
+  animation: skel 1.15s ease-in-out infinite;
+  border-radius: 8px;
+}

@@ -1,0 +1,5 @@
+# local env files — keep .env.example committed
+.env
+.env.*
+!.env.example
+.env*.local

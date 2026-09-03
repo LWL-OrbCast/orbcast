@@ -34,7 +34,7 @@
         "backgroundColor": "#F5F7F6"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.example.hip4sports",
+      "package": "com.orbcast.hip4sports",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.CAMERA"
@@ -104,7 +104,7 @@
             "minSdkVersion": 24,
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "-keepattributes *Annotation*\n-keepattributes SourceFile,LineNumberTable\n-keep class expo.modules.securestore.** { *; }\n-keep class expo.modules.crypto.** { *; }\n-keep class com.appsflyer.** { *; }\n-keepclassmembers class com.appsflyer.** { *; }\n-keep class kotlin.jvm.internal.** { *; }\n-dontwarn com.appsflyer.**\n-keep class com.google.android.gms.fido.** { *; }\n-keep class androidx.credentials.** { *; }"
+            "extraProguardRules": "-keepattributes *Annotation*\n-keepattributes SourceFile,LineNumberTable\n-keep class expo.modules.securestore.** { *; }\n-keep class expo.modules.crypto.** { *; }\n-keep class com.appsflyer.** { *; }\n-keepclassmembers class com.appsflyer.** { *; }\n-keep class kotlin.jvm.internal.** { *; }\n-dontwarn com.appsflyer.**\n-keep class com.google.android.gms.fido.** { *; }\n-keep class androidx.credentials.** { *; }\n-dontwarn java.awt.**\n-dontwarn javax.swing.**\n-dontwarn com.sun.jna.**"
           },
           "ios": {
             "deploymentTarget": "15.1"

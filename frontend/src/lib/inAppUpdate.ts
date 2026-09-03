@@ -11,9 +11,11 @@
  *
  * `expo-in-app-updates` remains available for a future force-update screen only.
  */
+import Constants from 'expo-constants';
 import { Linking, Platform } from 'react-native';
 
-const ANDROID_PACKAGE = 'com.example.hip4sports';
+const ANDROID_PACKAGE =
+  Constants.expoConfig?.android?.package || 'com.orbcast.hip4sports';
 const DEFAULT_PLAY_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`;
 
 async function openPlayStore(storeUrl: string | null | undefined): Promise<void> {

@@ -1,6 +1,6 @@
 # Mobile release & compliance
 
-Native Expo / React Native app. Bundle IDs in this repo are placeholders (`com.example.hip4sports`). Prediction / outcome markets have a different store and legal surface than leveraged futures — write copy for **this** product.
+Native Expo / React Native app. Android application id is `com.orbcast.hip4sports`. iOS bundle id is still the placeholder `com.example.hip4sports` until App Store Connect has a real one. Prediction / outcome markets have a different store and legal surface than leveraged futures — write copy for **this** product.
 
 This is **not legal advice**.
 

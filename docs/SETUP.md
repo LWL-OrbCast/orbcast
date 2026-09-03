@@ -66,7 +66,7 @@ Create a Privy app, then:
    **HttpOnly cookies (web)** — enable in the Privy dashboard (not in app code). `web/src/lib/auth.tsx` has no cookie adapter; without the dashboard toggle, sessions stay in JS-readable storage. Allowlist the same apex + `www` hosts. See [Privy cookies](https://docs.privy.io/recipes/react/cookies).
 
 2. **Mobile client** — React Native [requires a client](https://docs.privy.io/basics/get-started/dashboard/app-clients). Set:
-   - **Allowed app identifiers** to `expo.android.package` and `expo.ios.bundleIdentifier` in `frontend/app.json` (placeholders: `com.example.hip4sports`). An empty list denies mobile requests.
+   - **Allowed app identifiers** to `expo.android.package` (`com.orbcast.hip4sports`) and `expo.ios.bundleIdentifier` (`com.example.hip4sports` until iOS is registered). An empty list denies mobile requests.
    - **Allowed URL schemes** to the Expo `scheme` (`hip4sports` unless you rebrand).
 
 3. **Embedded wallets** — enable automatic **EVM** wallet creation in the dashboard. In code, `PrivyProvider` uses `createOnLogin: 'users-without-wallets'` ([Privy RN docs](https://docs.privy.io/basics/react-native/advanced/automatic-wallet-creation)). Do **not** create Solana wallets in app code.

@@ -17,7 +17,7 @@ This product is **HIP-4 only**. Do not add perps, HIP-3 books, banking, or an AI
 5. **Builder fees:** pin `EXPO_PUBLIC_HL_BUILDER_ADDRESS` (and fee tenths) in frontend `.env` **and** EAS, plus `VITE_HL_BUILDER_*` in `web/.env`. Match backend `BUILDER_ADDRESS`. Register your builder on Hyperliquid. [HL_BUILDER.md](./HL_BUILDER.md).
 6. Branding:
    - **Copy / URLs** — `frontend/src/lib/brand.ts` (shared by Expo + Vite): `BRAND_NAME`, `BRAND_DOMAIN`, X, support email, `HL_AGENT_NAME` (`approveAgent`), `WALLET_TRANSFER_INTENT_NAME`. If you change the transfer-intent name, match `WALLET_TRANSFER_INTENT_DOMAIN_NAME` in `backend/server.py` or deposits fail EIP-712 verify.
-   - **Native shell** — `frontend/app.json` (name, `com.example.hip4sports` placeholders, scheme `hip4sports`). Put RPC / Privy / analytics in `.env`, not committed `extra`.
+   - **Native shell** — `frontend/app.json` (name, Android `com.orbcast.hip4sports`, iOS `com.example.hip4sports` until registered, scheme `hip4sports`). Put RPC / Privy / analytics in `.env`, not committed `extra`.
    - Logos live under `frontend/assets/images/` and `web/src/assets/`. This file does not swap those.
 7. Firebase: copy `*.example` → real plist/json (gitignored).
 8. Smoke test: [SETUP.md](./SETUP.md). Optional EPL banner: `API_SPORTS_KEY` on the backend only ([SPORTS.md](./SPORTS.md)).

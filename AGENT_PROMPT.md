@@ -74,7 +74,7 @@ backend/
 
 Nav is **Home / Markets / Positions / Rewards / Wallet**. Do not add News-as-stocks, AI, banking, or a Markets-as-perps tab.
 
-`frontend/app.json` product name is **OrbCast**. Display name, domain, X, support email, and `approveAgent` name live in [`frontend/src/lib/brand.ts`](./frontend/src/lib/brand.ts) (web imports the same file). Bundle / scheme placeholders remain `com.example.hip4sports` / `hip4sports` until a native rebuild. Domain: `orbcast.xyz`.
+`frontend/app.json` product name is **OrbCast**. Display name, domain, X, support email, and `approveAgent` name live in [`frontend/src/lib/brand.ts`](./frontend/src/lib/brand.ts) (web imports the same file). Android package is `com.orbcast.hip4sports`; iOS bundle / URL scheme stay `com.example.hip4sports` / `hip4sports` until the iOS app is registered. Domain: `orbcast.xyz`.
 
 ---
 

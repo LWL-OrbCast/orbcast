@@ -79,7 +79,7 @@ Injected at build time (`EXPO_PUBLIC_*`). Prefer `.env` / EAS secrets over commi
 | `EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID`, `EXPO_PUBLIC_SIWE_*` | External wallet connect |
 | `EXPO_PUBLIC_APPSFLYER_DEV_KEY`, `EXPO_PUBLIC_WHITEPAPER_URL` | Optional |
 
-**Firebase:** gitignored `GoogleService-Info.plist` / `google-services.json` — copy from `*.example`.
+**Firebase client files** (gitignored): copy `*.example` → `GoogleService-Info.plist` / `google-services.json`, then replace with your Firebase downloads. For **EAS cloud builds**, also upload them as **file** secrets `GOOGLE_SERVICES_PLIST` and `GOOGLE_SERVICES_JSON` (see [SETUP.md](./SETUP.md) §11). Not `EXPO_PUBLIC_*`; not the FCM V1 service-account JSON.
 
 Do **not** copy `EXPO_PUBLIC_*` onto the backend host.
 

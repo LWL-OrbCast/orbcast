@@ -225,7 +225,24 @@ Client Firebase files and Expo **Google Service Account Keys** are different:
 | `google-services.json` / `GoogleService-Info.plist` | Native Firebase SDK in the app |
 | Expo Google Service Account Keys | EAS / FCM / Play automation |
 
-You typically need **both**. EAS cloud builds only upload git-tracked files. If the build says the json is missing, use an [EAS file env var](https://docs.expo.dev/eas/environment-variables/#file-environment-variables) or `eas build --local`. Do not commit the real client files.
+You typically need **both**. Do not commit the real client files.
+
+EAS cloud builds only upload git-tracked files, so the gitignored plist/json will not be on the builder. Upload them as **file** env vars (not string — the value is a path on the runner, not the file text). `frontend/app.config.js` reads them:
+
+| EAS file var | Local file |
+|--------------|------------|
+| `GOOGLE_SERVICES_PLIST` | `frontend/GoogleService-Info.plist` |
+| `GOOGLE_SERVICES_JSON` | `frontend/google-services.json` |
+
+Visibility **secret**. Attach `development` / `preview` / `production` as needed. CLI if the dashboard file picker rejects a `.plist`:
+
+```bash
+cd frontend
+npx eas-cli env:create --name GOOGLE_SERVICES_PLIST --type file --value ./GoogleService-Info.plist --visibility secret --environment development --environment preview --environment production
+npx eas-cli env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --visibility secret --environment development --environment preview --environment production
+```
+
+`eas-build-pre-install` copies those env paths (or the committed `*.example` stubs) into the filenames above. Local `eas build --local` can use the gitignored files on disk instead. Expo **Credentials → FCM V1 service account key** is a different JSON — do not put it in `GOOGLE_SERVICES_JSON`.
 
 Match Expo **Application identifier** / iOS bundle id to `frontend/app.json`.
 

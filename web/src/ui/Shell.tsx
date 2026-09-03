@@ -24,6 +24,7 @@ import {
 } from './icons';
 import { SearchModal } from './SearchModal';
 import { SportCategoryBar } from './SportCategoryBar';
+import { IncomingFundsBanner } from './IncomingFundsBanner';
 import orbcastLogo from '../assets/orbcast-logo.webp';
 import arbIcon from '../../../frontend/assets/images/symbols/arb-icon.webp';
 
@@ -292,6 +293,8 @@ function ShellFrame() {
           </div>
         </div>
       </header>
+
+      <IncomingFundsBanner />
 
       {searchOpen ? (
         <SearchModal query={search} onQuery={setSearch} onClose={() => setSearchOpen(false)} />

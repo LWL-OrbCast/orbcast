@@ -12,7 +12,7 @@ In **Expo → Project settings → Credentials**:
 
 - **Android application identifier** must match `expo.android.package` in `frontend/app.json`
 - **iOS bundle identifier** must match `expo.ios.bundleIdentifier`
-- Expo **Google Service Account Keys** are for EAS / FCM / Play — separate from Firebase **client** files (`google-services.json` / `GoogleService-Info.plist`). See [SETUP.md](./SETUP.md) §10.
+- Expo **Google Service Account Keys** are for EAS / FCM / Play — separate from Firebase **client** files (`google-services.json` / `GoogleService-Info.plist`). EAS file env vars: [SETUP.md](./SETUP.md) §11.
 
 ---
 

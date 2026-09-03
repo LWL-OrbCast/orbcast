@@ -651,7 +651,7 @@ function OrderRow({
         type="button"
         disabled={pending}
         onClick={onCancel}
-        className="shrink-0 text-xs font-bold text-[var(--danger)] disabled:opacity-50"
+        className="ml-5 shrink-0 rounded-lg bg-[#F43F5E18] px-2.5 py-1.5 text-[11px] font-extrabold leading-none text-[var(--danger)] transition hover:bg-[#F43F5E28] disabled:opacity-50"
       >
         {hip4.positions.cancelOrder}
       </button>

@@ -304,12 +304,12 @@ function renderOrder(
         onPress={onCancel}
         disabled={cancelling}
         hitSlop={8}
-        style={styles.cancelHit}
+        style={[styles.closeChip, { marginTop: 0 }]}
       >
         {cancelling ? (
           <ActivityIndicator size="small" color={colors.status.error} />
         ) : (
-          <Text style={styles.cancelLabel}>{t('hip4.positions.cancelOrder')}</Text>
+          <Text style={styles.closeChipText}>{t('hip4.positions.cancelOrder')}</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -1001,8 +1001,6 @@ const styles = StyleSheet.create({
   },
   rowPnlMuted: { fontWeight: '700', fontSize: 12, color: colors.text.tertiary, textAlign: 'right' },
   rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
-  cancelHit: { paddingLeft: 2, minWidth: 52, alignItems: 'flex-end' },
-  cancelLabel: { color: colors.status.error, fontWeight: '700', fontSize: 13 },
   showMore: {
     marginTop: 4,
     marginBottom: 8,

@@ -1,5 +1,4 @@
 {
-  "_comment": "Nearest tsconfig for Vite when web/ imports these files. Empty include so Expo still owns them via ../tsconfig.json (extends expo). Do not add extends: expo here — Vercel web install has no expo.",
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
@@ -11,6 +10,5 @@
     "skipLibCheck": true,
     "useDefineForClassFields": true
   },
-  "include": [],
-  "files": []
+  "include": ["./lib/**/*.ts", "./theme/**/*.ts"]
 }

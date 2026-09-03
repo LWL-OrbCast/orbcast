@@ -11,6 +11,7 @@ import { fetchArbUsdc, fetchUsdcNonce } from '../lib/arb';
 import { useWebAuth } from '../lib/auth';
 import { ARBITRUM_CHAIN_ID, ARBITRUM_USDC, HL_BRIDGE2 } from '../lib/config';
 import { interpolate, useCopy } from '../lib/copy';
+import { setHlDeposit, setHlWithdraw } from '../lib/fundsPending';
 import { useSpotAccount } from '../lib/useSpotAccount';
 import { buildWalletTransferIntentTypedData } from '../../../frontend/src/lib/walletTransferIntent';
 import {
@@ -25,6 +26,12 @@ import { AddressQr } from './AddressQr';
 import { IconAlert, IconCheck, IconChevron, IconCopy } from './icons';
 import { ProfileAvatar } from './ProfileAvatar';
 import { AuthGate, Skel, WalletSkeleton } from './skeleton';
+import {
+  TransferTicketModal,
+  type TransferKind,
+  type TransferTicketError,
+  type TransferTicketPhase,
+} from './TransferTicketModal';
 import arbIcon from '../../../frontend/assets/images/symbols/arb-icon.webp';
 
 const MIN_USDC = 5;
@@ -48,12 +55,6 @@ function sanitizeUsd(raw: string): string {
 function parseUsd(raw: string): number {
   const n = Number(raw.trim());
   return Number.isFinite(n) ? n : NaN;
-}
-
-function shortAddr(value: string): string {
-  const a = value.trim();
-  if (a.length < 12) return a;
-  return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
 function Spinner({ className = '' }: { className?: string }) {
@@ -153,8 +154,14 @@ export function WalletPage() {
   const [extAmt, setExtAmt] = useState('');
   const [extDest, setExtDest] = useState('');
   const [extOpen, setExtOpen] = useState(false);
-  const [extConfirm, setExtConfirm] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [ticket, setTicket] = useState<{
+    kind: TransferKind;
+    phase: TransferTicketPhase;
+    amount: number;
+    destination?: string;
+    error?: TransferTicketError | null;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
   const [balanceInfo, setBalanceInfo] = useState<{ title: string; body: string } | null>(null);
   const [transferPhase, setTransferPhase] = useState<'idle' | 'permit' | 'credit' | 'spot' | 'agent'>('idle');
@@ -195,11 +202,11 @@ export function WalletPage() {
   };
 
   const depositMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (amtStr: string) => {
       setMsg(null);
       setTransferPhase('permit');
       if (!address) throw new Error(depositCopy.noEmbeddedWallet);
-      const amt = Number(depositAmt);
+      const amt = Number(amtStr);
       if (!Number.isFinite(amt) || amt <= 0) throw new Error(depositCopy.invalidAmount);
       if (amt < MIN_USDC) throw new Error(interpolate(depositCopy.minimumUsdc, { min: MIN_USDC }));
       if (arbUsdc.data != null && amt > arbUsdc.data + 1e-9) throw new Error(depositCopy.insufficientUsdc);
@@ -250,27 +257,58 @@ export function WalletPage() {
         { user: address, usd: amountBase.toString(), deadline, signature },
         token,
       );
-
-      setTransferPhase('credit');
-      const landed = await waitForHlSpotCredit(address);
-      if (!landed) {
-        throw new Error(hip4.wallet.creditTimeout);
-      }
-      setTransferPhase('agent');
-      const status = await prepareWebAccount(provider, address, setupQ.data);
-      qc.setQueryData(['hip4', 'setup', address], status);
-      if (!status.agent) throw new Error(hip4.wallet.confirmTradingAccess);
-      return status;
+      return {
+        amtStr,
+        baselineTradeUsd: spot.usdc,
+        provider,
+      };
     },
-    onSuccess: (status) => {
-      setMsg(interpolate(depositCopy.movedToTrading, { amount: depositAmt }));
-      if (status.allComplete) {
-        setJustEnabled(true);
-        window.setTimeout(() => setJustEnabled(false), 6000);
-      }
+    onMutate: (amtStr) => {
+      setDepositAmt('');
+      return { amtStr };
+    },
+    onSuccess: (result) => {
+      setHlDeposit(
+        {
+          amount: result.amtStr,
+          startedAt: Date.now(),
+          baselineTradeUsd: result.baselineTradeUsd,
+        },
+        address,
+      );
+      setTicket((cur) => (cur?.kind === 'toTrade' ? { ...cur, phase: 'receipt' } : cur));
       void qc.invalidateQueries();
+      void (async () => {
+        if (!address) return;
+        const landed = await waitForHlSpotCredit(address);
+        if (!landed) return;
+        try {
+          const status = await prepareWebAccount(result.provider, address, setupQ.data);
+          qc.setQueryData(['hip4', 'setup', address], status);
+          if (status.allComplete) {
+            setJustEnabled(true);
+            window.setTimeout(() => setJustEnabled(false), 6000);
+          }
+        } catch {
+          /* Enable trading card remains if setup still needs a tap */
+        }
+      })();
     },
-    onError: (e: unknown) => setMsg(formatWebWalletError(e)),
+    onError: (e: unknown, amtStr) => {
+      setDepositAmt(amtStr);
+      setTicket((cur) =>
+        cur?.kind === 'toTrade'
+          ? {
+              ...cur,
+              phase: 'error',
+              error: {
+                title: depositCopy.transferDidntGoThrough,
+                message: formatWebWalletError(e),
+              },
+            }
+          : cur,
+      );
+    },
     onSettled: () => setTransferPhase('idle'),
   });
 
@@ -299,10 +337,10 @@ export function WalletPage() {
   });
 
   const withdrawMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (amtStr: string) => {
       setMsg(null);
       if (!address) throw new Error(depositCopy.noEmbeddedWallet);
-      const amt = Number(withdrawAmt);
+      const amt = Number(amtStr);
       if (!Number.isFinite(amt) || amt <= 0) throw new Error(depositCopy.invalidAmount);
       if (amt < MIN_WITHDRAW_USDC) {
         throw new Error(interpolate(depositCopy.minimumUsdc, { min: MIN_WITHDRAW_USDC }));
@@ -312,28 +350,54 @@ export function WalletPage() {
       if (!provider) throw new Error(depositCopy.noEmbeddedWallet);
       await switchChain(ARBITRUM_CHAIN_ID);
       await withdrawUsdc(provider, address, address, amt.toFixed(2));
+      return { amtStr, baselineWalletRaw: arbUsdc.data ?? 0 };
     },
-    onSuccess: () => {
-      setMsg(depositCopy.withdrawalRequested);
+    onMutate: () => {
+      setWithdrawAmt('');
+    },
+    onSuccess: (result) => {
+      setHlWithdraw(
+        {
+          amount: result.amtStr,
+          startedAt: Date.now(),
+          baselineWalletRaw: result.baselineWalletRaw,
+        },
+        address,
+      );
+      setTicket((cur) => (cur?.kind === 'toWallet' ? { ...cur, phase: 'receipt' } : cur));
       void qc.invalidateQueries();
     },
-    onError: (e: unknown) => setMsg(formatWebWalletError(e)),
+    onError: (e: unknown, amtStr) => {
+      setWithdrawAmt(amtStr);
+      setTicket((cur) =>
+        cur?.kind === 'toWallet'
+          ? {
+              ...cur,
+              phase: 'error',
+              error: {
+                title: depositCopy.transferDidntGoThrough,
+                message: formatWebWalletError(e),
+              },
+            }
+          : cur,
+      );
+    },
   });
 
   const extMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (args: { amount: string; dest: string }) => {
       setMsg(null);
       if (!address) throw new Error(depositCopy.noEmbeddedWallet);
       if (limitQ.data && limitQ.data.remaining === 0) {
         throw new Error(profileCopy.dailyLimitReached);
       }
-      if (!isAddress(extDest.trim())) {
+      if (!isAddress(args.dest.trim())) {
         throw new Error(profileCopy.invalidDestinationAddress);
       }
-      if (getAddress(extDest.trim()) === getAddress(address)) {
+      if (getAddress(args.dest.trim()) === getAddress(address)) {
         throw new Error(withdrawCopy.sameWallet);
       }
-      const amt = Number(extAmt);
+      const amt = Number(args.amount);
       if (!Number.isFinite(amt) || amt < MIN_EXTERNAL_USDC) {
         throw new Error(withdrawCopy.minTransfer);
       }
@@ -345,7 +409,7 @@ export function WalletPage() {
       await switchChain(ARBITRUM_CHAIN_ID);
 
       const from = getAddress(address);
-      const destination = getAddress(extDest.trim());
+      const destination = getAddress(args.dest.trim());
       const amountBase = parseUnits(amt.toFixed(6), 6);
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
       const { relayer } = await fetchRelayerAddress(from);
@@ -417,17 +481,30 @@ export function WalletPage() {
         token,
       );
     },
-    onSuccess: () => {
-      setMsg(interpolate(profileCopy.withdrew, { amount: extAmt }));
+    onMutate: (args) => {
       setExtAmt('');
       setExtDest('');
-      setExtConfirm(false);
-      setExtOpen(false);
+      return args;
+    },
+    onSuccess: () => {
+      setTicket((cur) => (cur?.kind === 'external' ? { ...cur, phase: 'receipt' } : cur));
       void qc.invalidateQueries();
     },
-    onError: (e: unknown) => {
-      setExtConfirm(false);
-      setMsg(formatWebWalletError(e));
+    onError: (e: unknown, args) => {
+      setExtAmt(args.amount);
+      setExtDest(args.dest);
+      setTicket((cur) =>
+        cur?.kind === 'external'
+          ? {
+              ...cur,
+              phase: 'error',
+              error: {
+                title: withdrawCopy.withdrawDidntGoThrough,
+                message: formatWebWalletError(e),
+              },
+            }
+          : cur,
+      );
     },
   });
 
@@ -487,6 +564,55 @@ export function WalletPage() {
           ? hip4.wallet.waitingForCredit
           : depositCopy.loading;
   const needsFinishSetup = needsSetup && tradeUsdc > 0.01;
+  const ticketBusy =
+    (ticket?.kind === 'toTrade' && depositMut.isPending) ||
+    (ticket?.kind === 'toWallet' && withdrawMut.isPending) ||
+    (ticket?.kind === 'external' && extMut.isPending);
+  const ticketBusyHint =
+    ticket?.kind === 'toTrade'
+      ? transferBusyLabel
+      : ticket?.kind === 'toWallet'
+        ? depositCopy.loading
+        : ticket?.kind === 'external'
+          ? commonCopy.processing
+          : undefined;
+
+  const openTicket = (kind: TransferKind) => {
+    setMsg(null);
+    if (kind === 'toTrade') {
+      setTicket({ kind, phase: 'confirm', amount: transferAmt });
+      return;
+    }
+    if (kind === 'toWallet') {
+      setTicket({ kind, phase: 'confirm', amount: withdrawAmtNum });
+      return;
+    }
+    setTicket({
+      kind,
+      phase: 'confirm',
+      amount: extAmtNum,
+      destination: getAddress(extDest.trim()),
+    });
+  };
+
+  const confirmTicket = () => {
+    if (!ticket || ticket.phase !== 'confirm' || ticketBusy) return;
+    if (ticket.kind === 'toTrade') {
+      depositMut.mutate(ticket.amount.toFixed(2));
+      return;
+    }
+    if (ticket.kind === 'toWallet') {
+      withdrawMut.mutate(ticket.amount.toFixed(2));
+      return;
+    }
+    if (!ticket.destination) return;
+    extMut.mutate({ amount: ticket.amount.toFixed(2), dest: ticket.destination });
+  };
+
+  const closeTicket = () => {
+    if (ticketBusy) return;
+    setTicket(null);
+  };
 
   return (
     <AuthGate
@@ -633,10 +759,7 @@ export function WalletPage() {
                 <button
                   type="button"
                   aria-expanded={extOpen}
-                  onClick={() => {
-                    setExtOpen((open) => !open);
-                    setExtConfirm(false);
-                  }}
+                  onClick={() => setExtOpen((open) => !open)}
                   className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                 >
                   <span className="text-sm font-extrabold">{profileCopy.withdrawExternal}</span>
@@ -667,10 +790,7 @@ export function WalletPage() {
                     </label>
                     <input
                       value={extDest}
-                      onChange={(e) => {
-                        setExtDest(e.target.value);
-                        setExtConfirm(false);
-                      }}
+                      onChange={(e) => setExtDest(e.target.value)}
                       placeholder="0x…"
                       spellCheck={false}
                       autoComplete="off"
@@ -692,60 +812,24 @@ export function WalletPage() {
                     ) : null}
                     <UsdAmountField
                       value={extAmt}
-                      onChange={(next) => {
-                        setExtAmt(next);
-                        setExtConfirm(false);
-                      }}
+                      onChange={setExtAmt}
                       disabled={extMut.isPending}
                       suffix={commonCopy.USDC}
                     />
                     <QuickPctRow
                       available={walletUsdc}
                       disabled={extMut.isPending || balancesPending}
-                      onPick={(next) => {
-                        setExtAmt(next);
-                        setExtConfirm(false);
-                      }}
+                      onPick={setExtAmt}
                       maxLabel={hip4.ticket.max}
                     />
-                    {extConfirm ? (
-                      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                        <p className="text-sm font-extrabold">{withdrawCopy.confirmTitle}</p>
-                        <p className="mt-1 text-xs text-[var(--text-2)]">
-                          {interpolate(withdrawCopy.confirmMessage, { amount: extAmt })}
-                        </p>
-                        <p className="mt-1.5 break-all font-mono text-[11px] font-semibold">
-                          {withdrawCopy.toAddress}: {shortAddr(extDest.trim())}
-                        </p>
-                        <div className="mt-3 flex gap-2">
-                          <button
-                            type="button"
-                            disabled={extMut.isPending}
-                            onClick={() => setExtConfirm(false)}
-                            className="btn-stamp btn-ghost-stamp flex-1 py-2 text-sm"
-                          >
-                            {commonCopy.cancel}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={extMut.isPending}
-                            onClick={() => extMut.mutate()}
-                            className="btn-stamp btn-no flex-1 py-2 text-sm"
-                          >
-                            {extMut.isPending ? commonCopy.processing : commonCopy.confirm}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={!canSubmitExt}
-                        onClick={() => setExtConfirm(true)}
-                        className="btn-stamp btn-no mt-3 w-full py-2.5 text-sm"
-                      >
-                        {withdrawCopy.withdraw}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      disabled={!canSubmitExt}
+                      onClick={() => openTicket('external')}
+                      className="btn-stamp btn-no mt-3 w-full py-2.5 text-sm"
+                    >
+                      {withdrawCopy.withdraw}
+                    </button>
                     {extLimitHit ? (
                       <p className="mt-1.5 text-xs font-semibold text-amber-700">
                         {profileCopy.dailyLimitReached}
@@ -835,7 +919,7 @@ export function WalletPage() {
                 <button
                   type="button"
                   disabled={depositMut.isPending || !canSubmitDeposit}
-                  onClick={() => depositMut.mutate()}
+                  onClick={() => openTicket('toTrade')}
                   className="btn-stamp btn-yes mt-3 flex w-full items-center justify-center gap-2 py-2.5 text-sm"
                 >
                   {depositMut.isPending ? (
@@ -884,7 +968,7 @@ export function WalletPage() {
                 <button
                   type="button"
                   disabled={withdrawMut.isPending || !canSubmitWithdraw}
-                  onClick={() => withdrawMut.mutate()}
+                  onClick={() => openTicket('toWallet')}
                   className="btn-stamp btn-no mt-3 flex w-full items-center justify-center py-2.5 text-sm"
                 >
                   {withdrawMut.isPending ? depositCopy.loading : depositCopy.transferTradeToWallet}
@@ -927,6 +1011,20 @@ export function WalletPage() {
               </div>
             </div>
           ) : null}
+          <TransferTicketModal
+            open={!!ticket}
+            phase={ticket?.phase ?? 'confirm'}
+            payload={
+              ticket
+                ? { kind: ticket.kind, amount: ticket.amount, destination: ticket.destination }
+                : null
+            }
+            error={ticket?.error}
+            busy={ticketBusy}
+            busyHint={ticketBusyHint}
+            onConfirm={confirmTicket}
+            onClose={closeTicket}
+          />
         </div>
       )}
     </AuthGate>

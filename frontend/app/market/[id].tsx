@@ -1497,6 +1497,7 @@ export default function MarketScreen() {
                           }}
                           disabled={!!busy}
                           hitSlop={8}
+                          style={styles.waitingCancelChip}
                         >
                           <Text style={styles.waitingCancel}>{t('hip4.ticket.cancelWait')}</Text>
                         </TouchableOpacity>
@@ -1994,9 +1995,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text.primary,
   },
+  waitingCancelChip: {
+    marginLeft: 8,
+    minHeight: 22,
+    minWidth: 52,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: '#F43F5E18',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   waitingCancel: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
+    fontFamily: fonts.extraBold,
+    fontSize: 11,
     color: colors.status.error,
   },
 });

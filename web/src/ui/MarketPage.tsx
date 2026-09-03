@@ -1176,7 +1176,7 @@ export function MarketPage() {
                   </span>
                   <button
                     type="button"
-                    className="font-bold text-[var(--danger)]"
+                    className="shrink-0 rounded-lg bg-[#F43F5E18] px-2.5 py-1.5 text-[11px] font-extrabold leading-none text-[var(--danger)] transition hover:bg-[#F43F5E28]"
                     onClick={() =>
                       void cancelOutcomeOrder({ oid: o.oid, outcomeId: o.outcomeId, side: o.side }).then(
                         () => qc.invalidateQueries({ queryKey: ['hip4', 'open-orders'] }),

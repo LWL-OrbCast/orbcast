@@ -13,3 +13,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Git commit SHA baked in at build time (empty string in local dev). */
+declare const __COMMIT_SHA__: string;

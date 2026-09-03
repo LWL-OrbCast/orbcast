@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_X_URL } from '../../../frontend/src/lib/brand';
+import { BRAND_GITHUB_URL, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_X_URL } from '../../../frontend/src/lib/brand';
 import { useCopy } from '../lib/copy';
 import orbcastLogo from '../assets/orbcast-logo.webp';
 import robinhoodIcon from '../assets/robinhood-icon.webp';
@@ -142,10 +142,36 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-[var(--border)]">
-        <p className="mx-auto max-w-[1280px] px-4 py-3 text-xs leading-relaxed text-[var(--text-3)] sm:px-6 sm:py-4">
-          © {year} {BRAND_NAME}. LUNATIC WISDOM LABS LLC. Outcome trading involves risk. Not available in restricted
-          jurisdictions.
-        </p>
+        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-3 text-xs leading-relaxed text-[var(--text-3)] sm:px-6 sm:py-4">
+          <p>
+            © {year} {BRAND_NAME}. LUNATIC WISDOM LABS LLC. Outcome trading involves risk. Not available in restricted
+            jurisdictions.
+          </p>
+          <p className="shrink-0">
+            <a
+              href={BRAND_GITHUB_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-[var(--accent-dark)]"
+            >
+              Open source
+            </a>
+            {__COMMIT_SHA__ ? (
+              <>
+                {' · '}
+                <a
+                  href={`${BRAND_GITHUB_URL}/commit/${__COMMIT_SHA__}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="This deployment was built from this exact commit"
+                  className="font-mono hover:text-[var(--accent-dark)]"
+                >
+                  build {__COMMIT_SHA__.slice(0, 7)}
+                </a>
+              </>
+            ) : null}
+          </p>
+        </div>
       </div>
     </footer>
   );

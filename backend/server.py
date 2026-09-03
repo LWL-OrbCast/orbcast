@@ -1885,6 +1885,25 @@ async def health():
     return {"status": "healthy", "service": "orbcast-api"}
 
 
+@api_router.get("/version")
+async def version():
+    """Deploy provenance: which git commit this backend was built from.
+
+    Railway injects RAILWAY_GIT_* on GitHub-triggered deploys, so anyone can
+    cross-check the running API against the public repo. Empty in local dev.
+    """
+    commit = os.getenv("RAILWAY_GIT_COMMIT_SHA", "").strip()
+    return {
+        "service": "orbcast-api",
+        "commit": commit or None,
+        "branch": os.getenv("RAILWAY_GIT_BRANCH", "").strip() or None,
+        "repo": "https://github.com/LWL-OrbCast/orbcast",
+        "commit_url": (
+            f"https://github.com/LWL-OrbCast/orbcast/commit/{commit}" if commit else None
+        ),
+    }
+
+
 @api_router.get("/sports/football/epl")
 async def sports_football_epl():
     """Premier League match chrome (API-Sports). Not trading odds."""

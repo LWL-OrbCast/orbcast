@@ -3,6 +3,7 @@ export const BRAND_NAME = 'OrbCast';
 export const BRAND_DOMAIN = 'orbcast.xyz';
 export const BRAND_SITE_URL = `https://${BRAND_DOMAIN}`;
 export const BRAND_X_URL = 'https://x.com/HyperTrade_X';
+export const BRAND_GITHUB_URL = 'https://github.com/LWL-OrbCast/orbcast';
 export const BRAND_SUPPORT_EMAIL = `support@${BRAND_DOMAIN}`;
 
 /** HL `approveAgent` name — keep in sync across Expo + web. */

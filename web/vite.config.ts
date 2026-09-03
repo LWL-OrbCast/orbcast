@@ -131,7 +131,13 @@ const FRAME_HEADERS = {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, 'VITE_');
+  // Vercel injects VERCEL_GIT_COMMIT_SHA at build time; anyone can verify the
+  // served bundle against https://github.com/LWL-OrbCast/orbcast/commit/<sha>.
+  const commitSha = (process.env.VERCEL_GIT_COMMIT_SHA ?? '').trim();
   return {
+    define: {
+      __COMMIT_SHA__: JSON.stringify(commitSha),
+    },
     plugins: [
       // Privy signTypedData uses Node `buffer` in the browser bundle.
       // https://docs.privy.io/basics/troubleshooting/react-frameworks#vite

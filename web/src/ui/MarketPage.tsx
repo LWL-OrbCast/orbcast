@@ -1119,14 +1119,10 @@ export function MarketPage() {
               <p className="mt-2 text-xs text-[var(--text-2)]">{hip4.ticket.fillShort}</p>
             ) : null}
             {err && !ticket ? <p className="mt-2 text-xs text-[var(--danger)]">{err}</p> : null}
-            {authenticated && liveSetup && !liveSetup.agent ? (
-              <p className="mt-2 text-xs text-[var(--accent-dark)]">{hip4.wallet.firstOrderEnables}</p>
-            ) : authenticated && liveSetup && !liveSetup.builderFee ? (
+            {authenticated && liveSetup && !liveSetup.builderFee ? (
               <p className="mt-2 text-xs text-[var(--text-2)]">
                 {interpolate(hip4.wallet.firstOrderFeeHint, { rate: sellFeeLabel })}
               </p>
-            ) : authenticated && liveSetup && !liveSetup.unified ? (
-              <p className="mt-2 text-xs text-[var(--accent-dark)]">{hip4.wallet.firstOrderEnables}</p>
             ) : null}
             {hydrating ? (
               <div className="skel mt-4 h-12 w-full rounded-xl" />

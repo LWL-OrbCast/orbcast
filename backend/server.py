@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import sys
 import logging
@@ -71,18 +70,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-# MongoDB connection -- for future use
-mongo_url = os.getenv('MONGO_URL')
-db_name = os.getenv('DB_NAME')
-client: Optional[AsyncIOMotorClient] = None
-db = None
-
-if mongo_url and db_name:
-    client = AsyncIOMotorClient(mongo_url)
-    db = client[db_name]
-else:
-    logger.warning("MongoDB not configured (MONGO_URL/DB_NAME missing). Continuing without DB.")
 
 # Supabase configuration for push notifications
 SUPABASE_URL = os.getenv('SUPABASE_URL')
@@ -1837,8 +1824,6 @@ async def shutdown():
         await ur_api.aclose_async_client()
     except Exception:
         pass
-    if client:
-        client.close()
     logger.info("OrbCast API shutdown")
 
 

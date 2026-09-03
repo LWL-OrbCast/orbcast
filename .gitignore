@@ -109,5 +109,8 @@ backend/deploy_ambire_mantle.py
 # Local-only Robinhood lockup deploy (never push to origin or private)
 /lockup/
 
+# Local whitepaper scratch PDF (keep LWL_Whitepaper.pdf tracked)
+docs/whitepaper/_verify.pdf
+
 # Leftover agent identity file — not used by Git (real config is ~/.gitconfig)
 /.gitconfig

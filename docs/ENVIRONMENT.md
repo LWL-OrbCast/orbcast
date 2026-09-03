@@ -77,7 +77,8 @@ Injected at build time (`EXPO_PUBLIC_*`). Prefer `.env` / EAS secrets over commi
 | `EXPO_PUBLIC_HL_BUILDER_ADDRESS` | Builder on orders. Unset → repo default. Forks that earn fees must set this (match backend). |
 | `EXPO_PUBLIC_HL_BUILDER_FEE_TENTHS_BPS` | Client fee ceiling (tenths bps). API may lower via rewards discount. |
 | `EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID`, `EXPO_PUBLIC_SIWE_*` | External wallet connect |
-| `EXPO_PUBLIC_APPSFLYER_DEV_KEY`, `EXPO_PUBLIC_WHITEPAPER_URL` | Optional |
+| `EXPO_PUBLIC_APPSFLYER_DEV_KEY` | Optional |
+| `EXPO_PUBLIC_WHITEPAPER_URL` | Optional. Unset → `https://orbcast.xyz/whitepaper.pdf` (LWL paper in `web/public`) |
 
 **Firebase client files** (gitignored): copy `*.example` → `GoogleService-Info.plist` / `google-services.json`, then replace with your Firebase downloads. For **EAS cloud builds**, also upload them as **file** secrets `GOOGLE_SERVICES_PLIST` and `GOOGLE_SERVICES_JSON` (see [SETUP.md](./SETUP.md) §11). Not `EXPO_PUBLIC_*`; not the FCM V1 service-account JSON.
 

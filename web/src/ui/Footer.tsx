@@ -1,6 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { BRAND_GITHUB_URL, BRAND_NAME, BRAND_SUPPORT_EMAIL, BRAND_X_URL } from '../../../frontend/src/lib/brand';
+import {
+  BRAND_GITHUB_URL,
+  BRAND_NAME,
+  BRAND_SUPPORT_EMAIL,
+  BRAND_WHITEPAPER_PATH,
+  BRAND_X_URL,
+} from '../../../frontend/src/lib/brand';
 import { useCopy } from '../lib/copy';
 import orbcastLogo from '../assets/orbcast-logo.webp';
 import robinhoodIcon from '../assets/robinhood-icon.webp';
@@ -113,6 +119,16 @@ export function Footer() {
                 </li>
                 <li>
                   <FooterNavLink to="/fees">Fees</FooterNavLink>
+                </li>
+                <li>
+                  <a
+                    href={BRAND_WHITEPAPER_PATH}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hover:text-[var(--accent-dark)]"
+                  >
+                    Whitepaper
+                  </a>
                 </li>
               </ul>
             </div>

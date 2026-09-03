@@ -72,7 +72,7 @@ import { useAppStore, type TradingEnv } from '../src/store/appStore';
 import { buildWhatsAppSupportUrl } from '../src/lib/support';
 import { pushRouteOnce } from '../src/lib/pushRouteOnce';
 import { useHyperliquidAccountStream } from '../src/lib/useHyperliquidAccountStream';
-import { BRAND_NAME, BRAND_SITE_URL, BRAND_X_URL } from '../src/lib/brand';
+import { BRAND_NAME, BRAND_SITE_URL, BRAND_WHITEPAPER_URL, BRAND_X_URL } from '../src/lib/brand';
 
 type Hex = `0x${string}`;
 
@@ -87,7 +87,7 @@ const extra =
 const WHITEPAPER_URL: string =
   process.env.EXPO_PUBLIC_WHITEPAPER_URL ||
   extra?.EXPO_PUBLIC_WHITEPAPER_URL ||
-  BRAND_SITE_URL;
+  BRAND_WHITEPAPER_URL;
 const RISK_DISCLOSURE_URL =
   process.env.EXPO_PUBLIC_RISK_DISCLOSURE_URL ||
   extra?.EXPO_PUBLIC_RISK_DISCLOSURE_URL ||
@@ -1263,15 +1263,6 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={() => safePush('/fees')}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: `${colors.text.tertiary}20` }]}>
-                <Ionicons name="pricetags" size={18} color={colors.text.tertiary} />
-              </View>
-              <Text style={styles.menuItemText}>{t('profile.fees')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {
@@ -1283,6 +1274,16 @@ export default function ProfileScreen() {
                 <Ionicons name="reader" size={18} color={colors.text.tertiary} />
               </View>
               <Text style={styles.menuItemText}>{t('profile.whitepaper')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => safePush('/fees')}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, { backgroundColor: `${colors.text.tertiary}20` }]}>
+                <Ionicons name="pricetags" size={18} color={colors.text.tertiary} />
+              </View>
+              <Text style={styles.menuItemText}>{t('profile.fees')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
           </TouchableOpacity>

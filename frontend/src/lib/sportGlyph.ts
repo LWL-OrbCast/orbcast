@@ -5,6 +5,7 @@ import { catalogChipForMarket } from './marketCatalog';
 export function sportGlyph(market: ListedMarket): keyof typeof Ionicons.glyphMap {
   switch (catalogChipForMarket(market)) {
     case 'nba':
+    case 'basketball':
       return 'basketball';
     case 'tennis':
       return 'tennisball';
@@ -22,6 +23,17 @@ export function sportGlyph(market: ListedMarket): keyof typeof Ionicons.glyphMap
       return 'stats-chart';
     case 'football':
       return 'football';
+    case 'nfl':
+    case 'rugby':
+    case 'afl':
+      return 'american-football';
+    case 'hockey':
+      return 'snow';
+    case 'volleyball':
+    case 'handball':
+      return 'baseball';
+    case 'f1':
+      return 'speedometer-outline';
     default:
       return 'trending-up';
   }

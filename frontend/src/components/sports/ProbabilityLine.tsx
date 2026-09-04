@@ -179,6 +179,8 @@ export const ProbabilityChart = React.memo(function ProbabilityChart({
     if (Math.abs(w - plotW) > 1) setPlotW(w);
   };
 
+  const showEndLabels = series.length <= 2;
+
   return (
     <View>
       <View style={[styles.chartRow, { height }]}>
@@ -218,35 +220,37 @@ export const ProbabilityChart = React.memo(function ProbabilityChart({
           ) : null}
           */}
         </View>
-        <View style={[styles.legendCol, { height, opacity: loading ? 0.22 : 1 }]} pointerEvents="none">
-          {labels.map((row) => (
-            <View key={row.key} style={[styles.endLabel, { top: row.y - 8 }]}>
-              <RollingNumber
-                value={row.pct}
-                format={(n) => `${Math.round(n)}%`}
-                align="left"
-                durationMs={380}
-                style={{
-                  color: row.color,
-                  fontSize: 11,
-                  fontWeight: row.selected ? '800' : '700',
-                  lineHeight: 14,
-                  letterSpacing: 0.2,
-                }}
-              />
-              <Text numberOfLines={1} style={[styles.endName, { color: row.color }]}>
-                {row.label}
-              </Text>
-            </View>
-          ))}
-        </View>
+        {showEndLabels ? (
+          <View style={[styles.legendCol, { height, opacity: loading ? 0.22 : 1 }]} pointerEvents="none">
+            {labels.map((row) => (
+              <View key={row.key} style={[styles.endLabel, { top: row.y - 8 }]}>
+                <RollingNumber
+                  value={row.pct}
+                  format={(n) => `${Math.round(n)}%`}
+                  align="left"
+                  durationMs={380}
+                  style={{
+                    color: row.color,
+                    fontSize: 11,
+                    fontWeight: row.selected ? '800' : '700',
+                    lineHeight: 14,
+                    letterSpacing: 0.2,
+                  }}
+                />
+                <Text numberOfLines={1} style={[styles.endName, { color: row.color }]}>
+                  {row.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
         {loading ? (
           <View style={styles.loader} pointerEvents="none">
             <ActivityIndicator color={colors.accent.gold} />
           </View>
         ) : null}
       </View>
-      <View style={[styles.axisRow, loading && { opacity: 0.35 }]}>
+      <View style={[styles.axisRow, !showEndLabels && styles.axisRowFlush, loading && { opacity: 0.35 }]}>
         <Text style={styles.axis}>{formatAxis(tMin, tMax - tMin)}</Text>
         <Text style={styles.axis}>{formatAxis(tMax, tMax - tMin)}</Text>
       </View>
@@ -280,6 +284,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     paddingRight: 96,
   },
+  axisRowFlush: { paddingRight: 0 },
   axis: {
     fontFamily: fonts.medium,
     fontSize: 10,

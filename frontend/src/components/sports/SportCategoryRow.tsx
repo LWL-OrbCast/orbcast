@@ -23,10 +23,18 @@ const CHIP_ICON: Record<SportChipId, keyof typeof Ionicons.glyphMap> = {
   stocks: 'briefcase',
   economics: 'stats-chart',
   football: 'football',
+  nfl: 'american-football',
   nba: 'basketball',
+  basketball: 'basketball',
   tennis: 'tennisball',
   mlb: 'baseball',
+  hockey: 'snow',
   mma: 'fitness',
+  rugby: 'american-football',
+  volleyball: 'baseball',
+  afl: 'american-football',
+  f1: 'speedometer-outline',
+  handball: 'basketball',
   esports: 'game-controller',
 };
 

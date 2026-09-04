@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
@@ -121,7 +121,7 @@ function formatClosedAt(ms: number): string {
 
 function renderOpen(
   item: OutcomePosition,
-  router: { push: (href: never) => void },
+  router: { push: (href: Href) => void },
   t: TFunction,
   money: MoneyFmt,
   onClose: () => void,
@@ -129,7 +129,7 @@ function renderOpen(
 ) {
   const tone = item.side === 0 ? YES_COLOR : NO_COLOR;
   const showClose = canMarketClose(item);
-  const goMarket = () => router.push(`/market/${item.outcomeId}` as never);
+  const goMarket = () => pushRouteOnce(router, `/market/${item.outcomeId}`);
   return (
     <View style={styles.row}>
       <TouchableOpacity style={styles.rowMain} onPress={goMarket} activeOpacity={0.8}>
@@ -261,7 +261,7 @@ function renderCancelled(item: OutcomeCancelledOrder, t: TFunction) {
 function renderOrder(
   item: OutcomeOpenOrder,
   markets: ListedMarket[],
-  router: { push: (href: never) => void },
+  router: { push: (href: Href) => void },
   t: TFunction,
   cancelling: boolean,
   onCancel: () => void,
@@ -278,7 +278,7 @@ function renderOrder(
     <View style={styles.row}>
       <TouchableOpacity
         style={styles.rowMain}
-        onPress={() => router.push(`/market/${item.outcomeId}` as never)}
+        onPress={() => pushRouteOnce(router, `/market/${item.outcomeId}`)}
         activeOpacity={0.8}
       >
         <View style={[styles.badge, { backgroundColor: `${tone}22` }]}>

@@ -60,6 +60,8 @@ Do not rename the catalog view to `'live'`. That string already means in-play on
 | Sports home / ticket / positions | `frontend/app/index.tsx`, `market/[id].tsx`, `portfolio.tsx` |
 | Vite desktop web | `web/` (DOM UI). Share `hip4.ts` via aliases. Do **not** import Expo screens, `hyperliquid.ts`, or `@privy-io/expo`. |
 | EPL match chrome | `backend/sports_football.py`, `frontend/src/lib/sportsFootball.ts`, `FeaturedMatchCard.tsx` |
+| Catalog sport chips / API-Sports hosts | `frontend/src/lib/sportsCatalog.ts`, `backend/sports_api.py` |
+| Catalog row images | `frontend/src/lib/marketSymbol.ts` + files in `frontend/assets/images/symbols/` (`lol-icon.webp` → LoL). Category chips stay vector glyphs. Do not fetch API-Sports art for catalog thumbs. |
 | Backend (wallet, rewards, push) | `backend/server.py` |
 | Product name / domain / X / support / HL agent name | `frontend/src/lib/brand.ts` (Expo + web). Keep `WALLET_TRANSFER_INTENT_NAME` in sync with `backend/server.py`. |
 
@@ -76,6 +78,7 @@ frontend/                 Expo Router app
   src/lib/hlEndpoints.ts  Pure HL URLs (Vite-safe)
   src/lib/hip4Runtime.ts  registerHip4Runtime — Expo kernel vs web IndexedDB
   src/lib/sportsFootball.ts  EPL board client (backend proxy)
+  src/lib/sportsCatalog.ts   Catalog chips + API-Sports hosts
   src/lib/hlKernel.ts     Agent / builder / withdraw (extract next)
   src/lib/hyperliquid.ts  Wallet / agent / withdraw / unified USDC (no perp orders)
   src/providers/          Privy, builder config, currency
@@ -109,7 +112,7 @@ Large single module. Jump by route prefix (`/api/health`, `/api/sports/football/
 7. **DB** — follow [DATABASE.md](./docs/DATABASE.md). Do not invent tables that fight deny-all RLS.
 8. **Relayer** — new EOAs for this app. Do not reuse another product’s relayer keys (nonce wars).
 9. **Trust live `outcomeMeta`** — do not hardcode docs deployer addresses. `settleQuestion` was replaced by `settleQuestion2`.
-10. **Sports chrome ≠ the book** — API-Sports is fixtures/score only. Do not show their odds next to HIP-4 mids. Key is `API_SPORTS_KEY` on the server; never Expo. See [SPORTS.md](./docs/SPORTS.md).
+10. **Sports chrome ≠ the book** — API-Sports is fixtures/score only. Soccer and NFL are different products (`sportsCatalog.ts` / `sports_api.py`). Do not show their odds next to HIP-4 mids. Key is `API_SPORTS_KEY` on the server; never Expo. See [SPORTS.md](./docs/SPORTS.md).
 
 ---
 

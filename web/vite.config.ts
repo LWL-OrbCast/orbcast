@@ -50,6 +50,7 @@ function originOf(url: string): string {
  *    WalletConnect endpoints Privy's CSP guide requires,
  *  - our backend + the configured Arbitrum RPC,
  *  - Supabase Storage signed avatar URLs (`*.supabase.co`, img-src only),
+ *  - API-Sports team/league crests on the EPL featured card (`*.api-sports.io`),
  *  - Google Fonts (stylesheet in index.html).
  * `frame-ancestors` is invalid inside a <meta> tag — it ships via HTTP headers
  * (public/_headers + the dev/preview servers below).
@@ -84,6 +85,7 @@ function buildCsp(env: Record<string, string>): string {
     'blob:',
     backendOrigin,
     supabaseOrigin || 'https://*.supabase.co',
+    'https://*.api-sports.io',
   ].filter(Boolean);
   return [
     "default-src 'self'",
@@ -154,6 +156,7 @@ export default defineConfig(({ mode }) => {
       alias: [
         { find: /^@hip4$/, replacement: path.join(frontendLib, 'hip4.ts') },
         { find: '@hip4/catalog', replacement: path.join(frontendLib, 'marketCatalog.ts') },
+        { find: '@hip4/symbol', replacement: path.join(frontendLib, 'marketSymbol.ts') },
         { find: '@hip4/endpoints', replacement: path.join(frontendLib, 'hlEndpoints.ts') },
         { find: '@hip4/runtime', replacement: path.join(frontendLib, 'hip4Runtime.ts') },
         { find: '@theme/colors', replacement: path.resolve(root, '../frontend/src/theme/colors.ts') },

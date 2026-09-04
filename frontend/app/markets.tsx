@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
@@ -39,15 +39,34 @@ const VIEWS: { id: MarketCatalogView; labelKey: string }[] = [
   { id: 'upcoming', labelKey: 'hip4.status.upcoming' },
 ];
 
+function firstParam(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
 export default function MarketsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const params = useLocalSearchParams<{ q?: string | string[]; view?: string | string[] }>();
   const focused = useIsFocused();
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
-  const [queryText, setQueryText] = useState('');
-  const [view, setView] = useState<MarketCatalogView>('endingSoon');
+  const [queryText, setQueryText] = useState(() => firstParam(params.q) ?? '');
+  const [view, setView] = useState<MarketCatalogView>(() => {
+    const v = firstParam(params.view);
+    return v === 'open' || v === 'upcoming' || v === 'endingSoon' ? v : 'endingSoon';
+  });
   const [chip, setChip] = useState<SportChipId>('all');
   const [pullRefreshing, setPullRefreshing] = useState(false);
+
+  useEffect(() => {
+    const q = firstParam(params.q);
+    if (q != null) setQueryText(q);
+  }, [params.q]);
+
+  useEffect(() => {
+    const v = firstParam(params.view);
+    if (v === 'open' || v === 'upcoming' || v === 'endingSoon') setView(v);
+  }, [params.view]);
 
   const catalogQuery = useQuery({
     queryKey: ['hip4', 'outcomes', 'all'],
@@ -160,7 +179,7 @@ export default function MarketsScreen() {
         renderItem={({ item }) => (
           <PredictionRow
             market={item}
-            onPress={() => router.push(`/market/${item.id}` as never)}
+            onPress={() => pushRouteOnce(router, `/market/${item.id}`)}
           />
         )}
         ListEmptyComponent={

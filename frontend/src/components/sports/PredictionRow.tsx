@@ -1,10 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import type { ListedMarket } from '../../lib/hip4';
 import { impliedPercent } from '../../lib/hip4';
-import { sportGlyph } from '../../lib/sportGlyph';
 import { colors } from '../../theme/colors';
+import { MarketSymbol } from './MarketSymbol';
 import { fonts } from '../../theme/fonts';
 import { softShadow } from '../../theme/shadows';
 import { useTranslation } from 'react-i18next';
@@ -39,37 +38,37 @@ export const PredictionRow = React.memo(function PredictionRow({ market, onPress
       onPress={onPress}
       style={({ pressed }) => [styles.card, softShadow, pressed && { opacity: 0.94 }]}
     >
-      <View style={styles.iconWrap}>
-        <Ionicons name={sportGlyph(market)} size={20} color={colors.accent.goldDark} />
+      <View style={styles.meta}>
+        {market.status === 'live' ? (
+          <View style={styles.livePill}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>{t('hip4.status.live')}</Text>
+          </View>
+        ) : (
+          <Text style={styles.when}>
+            {market.status === 'upcoming' ? t('hip4.status.upcoming') : t('hip4.status.settled')}
+          </Text>
+        )}
+        {vol ? <Text style={styles.vol}>{vol}</Text> : null}
       </View>
-      <View style={styles.mid}>
-        <View style={styles.meta}>
-          {market.status === 'live' ? (
-            <View style={styles.livePill}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>{t('hip4.status.live')}</Text>
-            </View>
-          ) : (
-            <Text style={styles.when}>
-              {market.status === 'upcoming' ? t('hip4.status.upcoming') : t('hip4.status.settled')}
-            </Text>
-          )}
-          {vol ? <Text style={styles.vol}>{vol}</Text> : null}
+      <View style={styles.body}>
+        <MarketSymbol market={market} size={44} radius={14} />
+        <View style={styles.mid}>
+          <Text style={styles.title} numberOfLines={2}>
+            {heading}
+          </Text>
+          <Text style={styles.sub} numberOfLines={1}>
+            {sub}
+          </Text>
         </View>
-        <Text style={styles.title} numberOfLines={2}>
-          {heading}
-        </Text>
-        <Text style={styles.sub} numberOfLines={1}>
-          {sub}
-        </Text>
-      </View>
-      <View style={styles.pctWrap}>
-        <Text style={styles.pct}>{leadPct}</Text>
-        <Text style={styles.pctSide} numberOfLines={1}>
-          {leadName}
-        </Text>
-        <View style={styles.miniBar}>
-          <View style={[styles.miniFill, { width: `${Math.round(Math.min(1, Math.max(0, lead)) * 100)}%` }]} />
+        <View style={styles.pctWrap}>
+          <Text style={styles.pct}>{leadPct}</Text>
+          <Text style={styles.pctSide} numberOfLines={1}>
+            {leadName}
+          </Text>
+          <View style={styles.miniBar}>
+            <View style={[styles.miniFill, { width: `${Math.round(Math.min(1, Math.max(0, lead)) * 100)}%` }]} />
+          </View>
         </View>
       </View>
     </Pressable>
@@ -78,9 +77,6 @@ export const PredictionRow = React.memo(function PredictionRow({ market, onPress
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     backgroundColor: colors.background.card,
     borderRadius: 18,
     padding: 12,
@@ -88,16 +84,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.primary,
   },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#ECFDF3',
+  body: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
   },
   mid: { flex: 1, minWidth: 0 },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
   livePill: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -690,7 +690,8 @@
         "signIn": "로그인",
         "logIn": "로그인",
         "signUp": "회원가입",
-        "wallet": "지갑"
+        "wallet": "지갑",
+        "search": "검색"
       },
       "sport": {
         "all": "전체",
@@ -698,10 +699,18 @@
         "stocks": "주식",
         "economics": "경제",
         "football": "축구",
+        "nfl": "NFL",
         "nba": "NBA",
+        "basketball": "농구",
         "tennis": "테니스",
         "mlb": "야구",
+        "hockey": "아이스하키",
         "mma": "종합격투기",
+        "rugby": "럭비",
+        "volleyball": "배구",
+        "afl": "AFL",
+        "f1": "F1",
+        "handball": "핸드볼",
         "esports": "e스포츠"
       },
       "status": {
@@ -714,6 +723,7 @@
       },
       "home": {
         "topEvent": "오늘의 주요 이벤트",
+        "noTodayEvents": "지금은 추천 시장이 없습니다",
         "seeAll": "전체 보기",
         "endingSoon": "종료 임박",
         "showMore": "더 보기 ({{count}})",
@@ -741,6 +751,8 @@
       "linkCopied": "링크가 복사되었습니다",
       "markets": {
         "searchPlaceholder": "팀, 이벤트, 대회 검색",
+        "seeAllResults": "전체 결과 보기",
+        "seeAllResultsCount": "전체 결과 보기 ({{count}})",
         "endingSoon": "종료 임박",
         "live": "진행 중",
         "count_one": "{{count}}개 시장",
@@ -797,7 +809,9 @@
       },
       "ticket": {
         "back": "시장",
-        "missing": "이 예측이 현재 목록에 없습니다.",
+        "missing": "이 시장은 더 이상 목록에 없습니다.",
+        "missingHint": "정산됐거나 만료됐거나, 진행 중 목록에서 빠졌을 수 있습니다.",
+        "missingCta": "시장 둘러보기",
         "outcomeChances": "예측 확률",
         "yesNoChances": "Yes / No 확률",
         "buy": "매수",
@@ -893,6 +907,8 @@
         "active": "활동 순위",
         "rules": "규칙",
         "bids": "호가",
+        "ask": "매도",
+        "bid": "매수",
         "waitingPrints": "체결 대기 중…",
         "noTrades": "최근 체결 내역이 없습니다.",
         "bidsEmpty": "아직 호가가 없습니다.",

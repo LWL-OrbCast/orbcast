@@ -85,7 +85,7 @@ export function MarketActivity({
           </p>
         ) : (
           <ul>
-            {prints.slice(0, 12).map((p) => {
+            {prints.slice(0, 8).map((p) => {
               const buy = p.takerSide === 'buy';
               const tone = buy ? YES_COLOR : NO_COLOR;
               const fromMap = p.outcomeId >= 0 ? legNames[p.outcomeId] : undefined;

@@ -324,6 +324,35 @@ export function IconStocks(p: IconProps) {
   );
 }
 
+export function IconAmericanFootball(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M6.5 12c0-3.2 2.5-6.5 5.5-6.5s5.5 3.3 5.5 6.5-2.5 6.5-5.5 6.5S6.5 15.2 6.5 12Z" />
+      <path d="M12 7.2v9.6M9.4 12h5.2M9.8 10.2h4.4M9.8 13.8h4.4" />
+    </Svg>
+  );
+}
+
+export function IconHockey(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <circle cx="16.5" cy="16.5" r="2.2" />
+      <path d="M6 6.5 14.5 15M8.2 5.2 5.5 8.6c-.6.8-.4 1.8.5 2.2L8 12" />
+    </Svg>
+  );
+}
+
+export function IconF1(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M5 15.5h11.5l3-3.2H14L12 15.5" />
+      <circle cx="8" cy="16.8" r="1.6" />
+      <circle cx="16.2" cy="16.8" r="1.6" />
+      <path d="M7 12.2h4.5L13 9.5H9.2Z" />
+    </Svg>
+  );
+}
+
 export function SportIcon({ id, size = 16 }: { id: SportChipId; size?: number }) {
   switch (id) {
     case 'crypto':
@@ -334,14 +363,25 @@ export function SportIcon({ id, size = 16 }: { id: SportChipId; size?: number })
       return <IconEconomics size={size} />;
     case 'football':
       return <IconFootball size={size} />;
+    case 'nfl':
+    case 'rugby':
+    case 'afl':
+      return <IconAmericanFootball size={size} />;
     case 'nba':
+    case 'basketball':
+    case 'handball':
       return <IconBasketball size={size} />;
     case 'tennis':
       return <IconTennis size={size} />;
     case 'mlb':
+    case 'volleyball':
       return <IconBaseball size={size} />;
+    case 'hockey':
+      return <IconHockey size={size} />;
     case 'mma':
       return <IconMma size={size} />;
+    case 'f1':
+      return <IconF1 size={size} />;
     case 'esports':
       return <IconEsports size={size} />;
     default:

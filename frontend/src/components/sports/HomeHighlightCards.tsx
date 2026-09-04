@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/fonts';
 import { softShadow } from '../../theme/shadows';
-import { sportGlyph } from '../../lib/sportGlyph';
 import { type ListedMarket } from '../../lib/hip4';
+import { MarketSymbol } from './MarketSymbol';
 import { useTranslation } from 'react-i18next';
 import { useDisplayCurrency } from '../../providers/CurrencyProvider';
 import { ShimmerBone, useShimmerX } from '../skeleton/ShimmerBone';
@@ -92,9 +92,7 @@ export function HomeHighlightCards({ markets, loading, onPressMarket, onExploreA
             style={({ pressed }) => [styles.item, pressed && { opacity: 0.85 }]}
           >
             <Text style={[styles.rank, i === 0 && styles.rankLead]}>{i + 1}</Text>
-            <View style={styles.iconWrap}>
-              <Ionicons name={sportGlyph(m)} size={16} color={colors.accent.goldDark} />
-            </View>
+            <MarketSymbol market={m} size={28} radius={9} questionLevel />
             <Text style={styles.itemTitle} numberOfLines={1}>
               {marketTitle(m)}
             </Text>
@@ -153,14 +151,6 @@ const styles = StyleSheet.create({
     color: '#F97316',
   },
   rankLead: { color: colors.accent.goldDark },
-  iconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    backgroundColor: '#ECFDF3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   itemTitle: {
     flex: 1,
     minWidth: 0,

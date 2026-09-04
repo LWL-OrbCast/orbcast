@@ -142,6 +142,8 @@ export type ListedMarket = {
   questionId: number | null;
   /** Question title when this outcome belongs to a multi-leg set. */
   questionName: string | null;
+  /** Parent question pipe spec (`institution:…|season:…`). Empty for standalone books. */
+  questionDescription: string | null;
   /** Short name for this leg (e.g. "No change") — not the full event title. */
   legLabel: string;
   /** True when this outcome shares a question with other named outcomes. */
@@ -253,7 +255,7 @@ export type OutcomeCancelledOrder = {
 };
 
 const SPORTS_RE =
-  /\b(sport|football|soccer|nba|nfl|mlb|nhl|fifa|uefa|match|league|tennis|ufc|mma|esport|premier|bundesliga|laliga|world\s*cup|olympi|cricket|rugby|nascar|f1|formula\s*1)\b/i;
+  /\b(sport|football|soccer|nba|nfl|mlb|nhl|fifa|uefa|match|league|tennis|ufc|mma|e-?sports?|premier|bundesliga|laliga|world\s*cup|olympi|cricket|rugby|nascar|f1|formula\s*1|hockey|volleyball|handball|\bafl\b)\b/i;
 
 /** HIP-4 books reject orders below this notional, except a full close of leftover shares. */
 export const MIN_OUTCOME_NOTIONAL_USD = 10;
@@ -553,9 +555,10 @@ export async function fetchSettledOutcomeLabels(
           const row = specToMetaRow(spec, id);
           const { title } = titleFromOutcome(row, templates);
           if (!title || isPlaceholderOutcomeTitle(title)) return;
+          const fields = displayFieldMap(mergedSpecFields(row));
           const sideNames: Record<0 | 1, string> = {
-            0: cleanSideName(row.sideSpecs[0]?.name ?? 'Yes'),
-            1: cleanSideName(row.sideSpecs[1]?.name ?? 'No'),
+            0: displaySideName(row.sideSpecs[0]?.name ?? 'Yes', fields),
+            1: displaySideName(row.sideSpecs[1]?.name ?? 'No', fields),
           };
           const label = { title, sideNames };
           settledLabelCache.set(id, { at: Date.now(), label });
@@ -1267,7 +1270,7 @@ export function marketRulesFacts(
   body: string;
   facts: string[];
 } {
-  const f = parsePipeFields(market.raw.description);
+  const f = marketSpecFields(market);
   const expiry = market.expiresAt ? formatWhen(market.expiresAt) : null;
 
   let body = multiLeg ? t('hip4.rules.multi') : t('hip4.rules.yesNo');
@@ -1310,7 +1313,19 @@ export function questionSiblings(all: ListedMarket[], market: ListedMarket): Lis
   const sibs = all.filter((m) => m.questionId === market.questionId);
   const named = sibs.filter((m) => !/fallback/i.test(m.raw.name) && !/fallback/i.test(m.legLabel));
   const use = named.length > 1 ? named : sibs;
-  return use.length > 1 ? use : [market];
+  const list = use.length > 1 ? use : [market];
+  return [...list].sort((a, b) =>
+    a.legLabel.localeCompare(b.legLabel, undefined, { sensitivity: 'base' }),
+  );
+}
+
+/**
+ * Book to open when the UI shows the *question* (Trending / featured title),
+ * not a named team. Volume-leader rows would otherwise land on the favorite.
+ */
+export function questionTicketMarket(all: ListedMarket[], market: ListedMarket): ListedMarket {
+  if (!market.multiOutcome) return market;
+  return questionSiblings(all, market)[0] ?? market;
 }
 
 export function parsePipeFields(description: string): Record<string, string> {
@@ -1322,6 +1337,40 @@ export function parsePipeFields(description: string): Record<string, string> {
     out[part.slice(0, i)] = part.slice(i + 1);
   }
   return out;
+}
+
+/** Outcome keywords overlay the parent question (`sport`, `institution`, …). */
+export function mergedSpecFields(
+  row: Pick<OutcomeMetaRow, 'description'>,
+  question?: Pick<OutcomeQuestion, 'description'> | null,
+): Record<string, string> {
+  return {
+    ...parsePipeFields(question?.description ?? ''),
+    ...parsePipeFields(row.description),
+  };
+}
+
+export function marketSpecFields(market: ListedMarket): Record<string, string> {
+  return {
+    ...parsePipeFields(market.questionDescription ?? ''),
+    ...parsePipeFields(market.raw.description),
+  };
+}
+
+function isSportsTemplateId(id: string | null | undefined): boolean {
+  return Boolean(id && /^sports/i.test(id));
+}
+
+function isProtocolFallbackName(name: string): boolean {
+  return /^(template\s+)?fallback$/i.test(name.trim());
+}
+
+function datetimeField(fields: Record<string, string>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const v = fields[key];
+    if (v) return v;
+  }
+  return undefined;
 }
 
 /** `YYYYMMDD-HHMM` (UTC) used in outcome descriptions. */
@@ -1372,8 +1421,55 @@ function templateIdFromName(name: string): string | null {
   return null;
 }
 
+/**
+ * HIP-4 names are `template:<id>`. Display text is the template pattern with
+ * pipe keywords substituted (`{season} {competition} winner`).
+ */
 function fillTemplate(pattern: string, fields: Record<string, string>): string {
-  return pattern.replace(/\{(\w+)\}/g, (_, key: string) => fields[key] ?? `{${key}}`);
+  return pattern
+    .replace(/\{(\w+)\}/g, (_, key: string) => fields[key] ?? '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([:?!,.])/g, '$1')
+    .trim();
+}
+
+function displayFieldMap(fields: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = { ...fields };
+  for (const [k, v] of Object.entries(out)) {
+    const when = parseOutcomeDateTime(v);
+    if (when != null) out[k] = formatWhen(when);
+    else if (k === 'perp' || k === 'underlying' || k === 'hlPerp') {
+      out[k] = displayOracleSymbol(v);
+    }
+  }
+  const perp = out.perp || out.underlying || out.hlPerp || '';
+  const underlying = out.underlying || out.perp || out.hlPerp || '';
+  if (perp) out.perp = perp;
+  if (underlying) out.underlying = underlying;
+  out.threshold = out.threshold || out.targetPrice || out.target || '';
+  out.target = out.target || out.targetPrice || out.threshold || '';
+  return out;
+}
+
+function fillNamedTemplate(
+  rawName: string,
+  templates: OutcomeTemplate[],
+  fields: Record<string, string>,
+): string | null {
+  const tid = templateIdFromName(rawName);
+  if (!tid) return null;
+  const tmpl = templates.find((t) => t.id === tid);
+  if (!tmpl?.name?.trim()) return null;
+  const filled = fillTemplate(tmpl.name, fields);
+  return filled || null;
+}
+
+function displaySideName(raw: string, fields: Record<string, string>): string {
+  const stripped = raw.replace(/^template:/i, '').trim();
+  if (!stripped) return 'Yes';
+  const filled = fillTemplate(stripped, fields);
+  if (filled) return filled;
+  return cleanSideName(stripped);
 }
 
 function displayTitlePair(title: string, subtitle: string): { title: string; subtitle: string } {
@@ -1388,23 +1484,30 @@ export function titleFromOutcome(
   templates: OutcomeTemplate[],
   question?: OutcomeQuestion | null,
 ): { title: string; subtitle: string } {
-  const fields = parsePipeFields(row.description);
-  const tid = templateIdFromName(row.name);
-  const tmpl = tid ? templates.find((t) => t.id === tid) : undefined;
-  const expiry = parseOutcomeDateTime(fields.expiry ?? fields.time ?? fields.scheduledDecision);
+  const rawFields = mergedSpecFields(row, question);
+  const fields = displayFieldMap(rawFields);
+  const expiry = parseOutcomeDateTime(
+    datetimeField(rawFields, [
+      'expiry',
+      'time',
+      'scheduledDecision',
+      'decisionDeadline',
+      'resolutionDeadline',
+    ]),
+  );
+  const start = parseOutcomeDateTime(
+    datetimeField(rawFields, ['scheduledStart', 'time', 'scheduledDecision']),
+  );
+  const whenLabel = start ? formatWhen(start) : expiry ? formatWhen(expiry) : '';
+  const questionTitle = question ? fillNamedTemplate(question.name, templates, fields) : null;
+  const outcomeTitle = isProtocolFallbackName(row.name)
+    ? null
+    : fillNamedTemplate(row.name, templates, fields);
 
-  if (tmpl?.name && /\{/.test(tmpl.name)) {
-    const title = fillTemplate(tmpl.name, {
-      ...fields,
-      perp: displayOracleSymbol(fields.perp ?? fields.underlying ?? ''),
-      underlying: displayOracleSymbol(fields.underlying ?? fields.perp ?? ''),
-      threshold: fields.threshold ?? fields.targetPrice ?? fields.target ?? '',
-      time: expiry ? formatWhen(expiry) : (fields.time ?? ''),
-    }).replace(/\s+\?/g, '?');
-    return displayTitlePair(
-      title,
-      question?.name ? cleanSideName(question.name) : expiry ? formatWhen(expiry) : '',
-    );
+  if (outcomeTitle) {
+    const subtitle =
+      questionTitle && questionTitle !== outcomeTitle ? questionTitle : whenLabel;
+    return displayTitlePair(outcomeTitle.replace(/\s+\?/g, '?'), subtitle);
   }
 
   if (fields.class === 'priceBinary' && fields.underlying && (fields.targetPrice || fields.threshold)) {
@@ -1420,7 +1523,7 @@ export function titleFromOutcome(
     const qf = parsePipeFields(question.description);
     if (qf.class === 'priceBucket' && qf.underlying && qf.priceThresholds) {
       const cuts = qf.priceThresholds.split(',').map((x) => Number(x.trim())).filter(Number.isFinite);
-      const idx = Number(fields.index);
+      const idx = Number(rawFields.index);
       const qExpiry = parseOutcomeDateTime(qf.expiry) ?? expiry;
       const when = qExpiry ? ` by ${formatWhen(qExpiry)}` : '';
       const u = displayOracleSymbol(qf.underlying);
@@ -1429,17 +1532,16 @@ export function titleFromOutcome(
         if (idx === 0) title = `Will ${u} finish below $${formatUsdCompact(cuts[0])}${when}?`;
         else if (idx === cuts.length) title = `Will ${u} finish above $${formatUsdCompact(cuts[cuts.length - 1])}${when}?`;
         else title = `Will ${u} finish between $${formatUsdCompact(cuts[idx - 1])} and $${formatUsdCompact(cuts[idx])}${when}?`;
-      } else if (row.name.toLowerCase().includes('fallback')) {
+      } else if (isProtocolFallbackName(row.name) || row.name.toLowerCase().includes('fallback')) {
         title = `${u} bucket fallback`;
       }
       return displayTitlePair(title, 'Price bucket');
     }
-    if (qf.institution && qf.policyMeasure) {
-      return displayTitlePair(
-        `${qf.institution}: ${cleanSideName(row.name) || qf.policyMeasure}`,
-        qf.decisionLabel || 'Policy question',
-      );
-    }
+  }
+
+  if (questionTitle) {
+    const leg = isProtocolFallbackName(row.name) ? 'Other' : '';
+    return displayTitlePair(questionTitle, leg || whenLabel);
   }
 
   if (fields.class === 'priceBucket' && fields.underlying) {
@@ -1457,25 +1559,25 @@ export function titleFromOutcome(
     );
   }
 
-  const fallback = cleanSideName(row.name);
+  const fallback = isProtocolFallbackName(row.name) ? 'Other' : cleanSideName(row.name);
   const desc = row.description.replace(/metadata=.*$/, '').trim();
   return displayTitlePair(
     fallback && fallback !== 'Recurring' ? fallback : desc || `Prediction #${row.outcome}`,
-    question ? cleanSideName(question.name) : expiry ? formatWhen(expiry) : '',
+    questionTitle || (question ? cleanSideName(question.name) : whenLabel),
   );
 }
 
 function expiryFromRow(row: OutcomeMetaRow, question?: OutcomeQuestion | null): number | null {
-  const fields = parsePipeFields(row.description);
-  const fromRow = parseOutcomeDateTime(
-    fields.expiry ?? fields.time ?? fields.scheduledDecision ?? fields.decisionDeadline,
+  const fields = mergedSpecFields(row, question);
+  return parseOutcomeDateTime(
+    datetimeField(fields, [
+      'expiry',
+      'time',
+      'scheduledDecision',
+      'decisionDeadline',
+      'resolutionDeadline',
+    ]),
   );
-  if (fromRow) return fromRow;
-  if (question) {
-    const qf = parsePipeFields(question.description);
-    return parseOutcomeDateTime(qf.expiry ?? qf.time ?? qf.scheduledDecision ?? qf.decisionDeadline);
-  }
-  return null;
 }
 
 function startFromRow(
@@ -1483,13 +1585,12 @@ function startFromRow(
   question: OutcomeQuestion | null | undefined,
   expiry: number | null,
 ): number | null {
-  const fields = parsePipeFields(row.description);
-  let start = parseOutcomeDateTime(fields.time ?? fields.scheduledDecision);
-  if (start == null && question) {
-    const qf = parsePipeFields(question.description);
-    start = parseOutcomeDateTime(qf.time ?? qf.scheduledDecision);
-  }
-  if (start == null || expiry == null) return null;
+  const fields = mergedSpecFields(row, question);
+  const start = parseOutcomeDateTime(
+    datetimeField(fields, ['scheduledStart', 'time', 'scheduledDecision']),
+  );
+  if (start == null) return null;
+  if (expiry == null) return start;
   if (start >= expiry - 60_000) return null;
   return start;
 }
@@ -1512,6 +1613,10 @@ export function isSportsMarket(
   question?: OutcomeQuestion | null,
 ): boolean {
   const tid = templateIdFromName(row.name);
+  const qtid = question ? templateIdFromName(question.name) : null;
+  if (isSportsTemplateId(tid) || isSportsTemplateId(qtid)) return true;
+  const fields = mergedSpecFields(row, question);
+  if (fields.sport) return true;
   const tmpl = tid ? templates.find((t) => t.id === tid) : undefined;
   const blob = [
     row.name,
@@ -1598,6 +1703,7 @@ export async function listOutcomes(opts?: {
     if (!row.outcome) continue;
     const question = questionByOutcome.get(row.outcome) ?? null;
     if (isUnlistedPlaceholderOutcome(row, question)) continue;
+    const specFields = displayFieldMap(mergedSpecFields(row, question));
     const { title, subtitle } = titleFromOutcome(row, templates, question);
     const expiresAt = expiryFromRow(row, question);
     const startsAt = startFromRow(row, question, expiresAt);
@@ -1608,7 +1714,7 @@ export async function listOutcomes(opts?: {
       const coin = outcomeSpotCoin(row.outcome, s);
       return {
         side: s,
-        name: cleanSideName(spec?.name ?? (s === 0 ? 'Yes' : 'No')),
+        name: displaySideName(spec?.name ?? (s === 0 ? 'Yes' : 'No'), specFields),
         coin,
         token: outcomeTokenName(row.outcome, s),
         assetId: outcomeAssetId(row.outcome, s),
@@ -1621,15 +1727,27 @@ export async function listOutcomes(opts?: {
     if (yes != null && no == null) sides[1].probability = clampProb(1 - yes);
     if (no != null && yes == null) sides[0].probability = clampProb(1 - no);
 
+    const questionName = question
+      ? stripHip3DexPrefixForDisplay(
+          fillNamedTemplate(question.name, templates, specFields) ?? cleanSideName(question.name),
+        )
+      : null;
+    const legLabel = stripHip3DexPrefixForDisplay(
+      isProtocolFallbackName(row.name)
+        ? 'Other'
+        : fillNamedTemplate(row.name, templates, specFields) ||
+            cleanSideName(row.name) ||
+            sides[0]?.name ||
+            `Prediction ${row.outcome}`,
+    );
+
     const market: ListedMarket = {
       id: String(row.outcome),
       outcomeId: row.outcome,
       questionId: question?.question ?? null,
-      questionName: question ? stripHip3DexPrefixForDisplay(cleanSideName(question.name)) : null,
-      legLabel:
-        stripHip3DexPrefixForDisplay(
-          cleanSideName(row.name) || sides[0]?.name || `Prediction ${row.outcome}`,
-        ),
+      questionName,
+      questionDescription: question?.description ?? null,
+      legLabel,
       multiOutcome: (question?.namedOutcomes.length ?? 0) > 1,
       title,
       subtitle,
@@ -1640,7 +1758,7 @@ export async function listOutcomes(opts?: {
       startsAt,
       status: statusFromTimes(expiresAt, startsAt, settled),
       isSports: isSportsMarket(row, templates, question),
-      templateId: templateIdFromName(row.name),
+      templateId: templateIdFromName(row.name) ?? (question ? templateIdFromName(question.name) : null),
       volumeUsd: dayVolumeUsd(volByCoin, row.outcome),
       raw: row,
     };

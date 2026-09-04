@@ -8,7 +8,7 @@ import {
   formatMarketVolumeAmount,
   impliedPercent,
   listOutcomes,
-  topMarketsByVolume,
+  questionTicketMarket,
   type ListedMarket,
 } from '@hip4';
 import {
@@ -16,18 +16,24 @@ import {
   applySearch,
   applySportChip,
   catalogEmptyKind,
+  featuredCatalogMarkets,
   isEconomicsCatalogMarket,
+  sportOnlyChipForMarket,
+  trendingCatalogMarkets,
   type MarketCatalogView,
   type SportChipId,
 } from '@hip4/catalog';
+import { fetchEplBoard, isTodaysEplFixture } from '../lib/api';
 import { interpolate, useCopy } from '../lib/copy';
 import { useCatalogUi } from './catalogUi';
+import { EplFeatured } from './EplFeatured';
 import { FeaturedEvent } from './FeaturedEvent';
 import { looksLikeScheduleSubtitle, formatHms } from './formatTime';
-import { IconChevron, IconFlame, SportIcon } from './icons';
+import { IconChevron, IconFlame } from './icons';
+import { MarketSymbol } from './MarketSymbol';
 import { RollingNumber } from './RollingNumber';
 import { HomeLiveSkeleton, MarketGridSkeleton, SidebarListSkeleton } from './skeleton';
-import { SPORT_CHIPS, sportIdForListed } from './SportCategoryBar';
+import { SPORT_CHIPS } from './SportCategoryBar';
 
 export function useCatalog() {
   return useQuery({
@@ -51,38 +57,36 @@ export function MarketRow({ market }: { market: ListedMarket }) {
       : '';
   const leadName = market.multiOutcome ? market.legLabel : (yes?.name ?? hip4.yes);
   const vol = formatMarketVolumeAmount(market.volumeUsd);
-  const sport = sportIdForListed(market);
   const lead = yes?.probability ?? 0.5;
   return (
     <Link
       to={`/market/${market.id}`}
-      className="card-shadow flex min-w-0 items-center gap-3.5 rounded-[18px] border border-[var(--border)] bg-white p-3.5 hover:border-[var(--accent)]"
+      className="card-shadow flex min-w-0 flex-col rounded-[18px] border border-[var(--border)] bg-white p-3.5 hover:border-[var(--accent)]"
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[#ECFDF3] text-[var(--accent-dark)]">
-        <SportIcon id={sport} size={20} />
+      <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide">
+        {market.status === 'live' ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--live-bg)] px-2 py-0.5 text-[var(--live-dark)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--live)]" />
+            {hip4.status.live}
+          </span>
+        ) : (
+          <span className="text-[var(--text-3)]">
+            {market.status === 'upcoming' ? hip4.status.upcoming : hip4.status.settled}
+          </span>
+        )}
+        {vol ? (
+          <span className="font-medium normal-case text-[var(--text-3)]">
+            {interpolate(hip4.row.volume, { amount: vol })}
+          </span>
+        ) : null}
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide">
-          {market.status === 'live' ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--live-bg)] px-2 py-0.5 text-[var(--live-dark)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--live)]" />
-              {hip4.status.live}
-            </span>
-          ) : (
-            <span className="text-[var(--text-3)]">
-              {market.status === 'upcoming' ? hip4.status.upcoming : hip4.status.settled}
-            </span>
-          )}
-          {vol ? (
-            <span className="font-medium normal-case text-[var(--text-3)]">
-              {interpolate(hip4.row.volume, { amount: vol })}
-            </span>
-          ) : null}
+      <div className="flex min-w-0 items-center gap-3.5">
+        <MarketSymbol market={market} size={44} className="rounded-[14px]" />
+        <div className="min-w-0 flex-1">
+          <div className="line-clamp-2 text-sm font-bold leading-snug">{heading}</div>
+          {sub ? <div className="truncate text-xs text-[var(--text-3)]">{sub}</div> : null}
         </div>
-        <div className="line-clamp-2 text-sm font-bold leading-snug">{heading}</div>
-        {sub ? <div className="truncate text-xs text-[var(--text-3)]">{sub}</div> : null}
-      </div>
-      <div className="w-[72px] shrink-0 text-right">
+        <div className="w-[72px] shrink-0 text-right">
         <div className="text-lg font-extrabold text-[var(--accent-dark)]">{impliedPercent(yes?.probability ?? null)}</div>
         <div className="truncate text-[10px] font-semibold text-[var(--text-2)]">{leadName}</div>
         <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--bg-2)]">
@@ -90,6 +94,7 @@ export function MarketRow({ market }: { market: ListedMarket }) {
             className="h-full rounded-full bg-[var(--accent)]"
             style={{ width: `${Math.round(Math.min(1, Math.max(0, lead)) * 100)}%` }}
           />
+        </div>
         </div>
       </div>
     </Link>
@@ -170,10 +175,21 @@ function SidebarList({
   );
 }
 
-function TrendingSidebar({ markets, loading }: { markets: ListedMarket[]; loading?: boolean }) {
+function TrendingSidebar({
+  markets,
+  catalog,
+  loading,
+  sport,
+}: {
+  markets: ListedMarket[];
+  catalog: ListedMarket[];
+  loading?: boolean;
+  sport: SportChipId;
+}) {
   const { hip4 } = useCopy();
   if (loading) return <SidebarListSkeleton />;
   if (!markets.length) return null;
+  const to = sport === 'all' ? '/markets?view=open' : `/markets?view=open&sport=${sport}`;
   return (
     <SidebarList
       title={
@@ -181,7 +197,7 @@ function TrendingSidebar({ markets, loading }: { markets: ListedMarket[]; loadin
           <span aria-hidden>🔥</span> {hip4.home.trending}
         </>
       }
-      to="/markets?view=open"
+      to={to}
     >
       <ol>
         {markets.map((m, i) => {
@@ -190,10 +206,11 @@ function TrendingSidebar({ markets, loading }: { markets: ListedMarket[]; loadin
           return (
             <li key={m.id}>
               <Link
-                to={`/market/${m.id}`}
+                to={`/market/${questionTicketMarket(catalog, m).id}`}
                 className="flex min-w-0 items-center gap-2 px-3 py-3 hover:bg-[var(--bg)] sm:gap-3 sm:px-4"
               >
                 <span className="w-5 shrink-0 text-sm font-extrabold text-[var(--text-3)]">{i + 1}</span>
+                <MarketSymbol market={m} size={28} questionLevel className="rounded-[9px]" />
                 <span className="min-w-0 flex-1 truncate text-sm font-bold">{heading}</span>
                 <span className="shrink-0 text-[11px] font-semibold text-[var(--text-3)]">
                   {vol !== '—' ? vol : ''}
@@ -209,7 +226,15 @@ function TrendingSidebar({ markets, loading }: { markets: ListedMarket[]; loadin
   );
 }
 
-function EndingSoonSidebar({ markets, loading }: { markets: ListedMarket[]; loading?: boolean }) {
+function EndingSoonSidebar({
+  markets,
+  loading,
+  sport,
+}: {
+  markets: ListedMarket[];
+  loading?: boolean;
+  sport: SportChipId;
+}) {
   const { hip4 } = useCopy();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -218,6 +243,8 @@ function EndingSoonSidebar({ markets, loading }: { markets: ListedMarket[]; load
   }, []);
   if (loading) return <SidebarListSkeleton />;
   if (!markets.length) return null;
+  const to =
+    sport === 'all' ? '/markets?view=endingSoon' : `/markets?view=endingSoon&sport=${sport}`;
   return (
     <SidebarList
       title={
@@ -225,7 +252,7 @@ function EndingSoonSidebar({ markets, loading }: { markets: ListedMarket[]; load
           <span aria-hidden>⏳</span> {hip4.home.endingSoon}
         </>
       }
-      to="/markets?view=endingSoon"
+      to={to}
     >
       <ul>
         {markets.map((m) => {
@@ -242,6 +269,7 @@ function EndingSoonSidebar({ markets, loading }: { markets: ListedMarket[]; load
                 to={`/market/${m.id}`}
                 className="flex min-w-0 items-center gap-3 px-3 py-3 hover:bg-[var(--bg)] sm:px-4"
               >
+                <MarketSymbol market={m} size={36} questionLevel className="rounded-xl" />
                 <span className="min-w-0 flex-1">
                   <span className="line-clamp-2 text-sm font-bold leading-snug">{heading}</span>
                   {remainSec != null || vol !== '—' ? (
@@ -286,11 +314,29 @@ export function HomePage() {
   const [showAllLive, setShowAllLive] = useState(false);
   const all = q.data ?? [];
   const scoped = useMemo(() => applySportChip(all, sport), [all, sport]);
-  const featured = useMemo(() => {
-    const inPlay = scoped.filter((m) => m.status === 'live');
-    return topMarketsByVolume(inPlay.length ? inPlay : scoped, 5);
-  }, [scoped]);
-  const trending = useMemo(() => topMarketsByVolume(scoped, 5), [scoped]);
+  const featured = useMemo(() => featuredCatalogMarkets(all, sport, 5), [all, sport]);
+  const trending = useMemo(() => trendingCatalogMarkets(all, sport, 5), [all, sport]);
+  const eplQ = useQuery({
+    queryKey: ['sports', 'football', 'epl'],
+    queryFn: fetchEplBoard,
+    staleTime: 45_000,
+    refetchInterval: (q) => (q.state.data?.featured?.live ? 45_000 : 90_000),
+    retry: 1,
+    enabled: sport === 'football',
+  });
+  const eplFixture =
+    sport === 'football' &&
+    eplQ.data?.configured &&
+    eplQ.data.featured &&
+    isTodaysEplFixture(eplQ.data.featured)
+      ? eplQ.data.featured
+      : null;
+  const eplHref = (() => {
+    const footballBook =
+      featured.find((m) => sportOnlyChipForMarket(m) === 'football') ??
+      scoped.find((m) => sportOnlyChipForMarket(m) === 'football');
+    return footballBook ? `/market/${footballBook.id}` : '/markets?view=open&sport=football';
+  })();
   const endingSoon = useMemo(
     () => applyCatalogView(scoped, 'endingSoon').slice(0, 5),
     [scoped],
@@ -309,11 +355,24 @@ export function HomePage() {
     <div className="min-w-0 w-full max-w-full">
       <div className="grid w-full min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="min-w-0 w-full max-w-full">
-          <FeaturedEvent markets={featured} catalog={all} loading={catalogLoading} />
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-xl font-extrabold">{hip4.home.topEvent}</h2>
+            <Link
+              to={sport === 'all' ? '/markets?view=open' : `/markets?view=open&sport=${sport}`}
+              className="text-sm font-bold text-[var(--accent-dark)]"
+            >
+              {hip4.home.seeAll}
+            </Link>
+          </div>
+          {eplFixture ? (
+            <EplFeatured fixture={eplFixture} href={eplHref} />
+          ) : (
+            <FeaturedEvent key={sport} markets={featured} catalog={all} loading={catalogLoading} />
+          )}
         </div>
         <aside className="flex min-w-0 w-full max-w-full flex-col gap-4">
-          <TrendingSidebar markets={trending} loading={catalogLoading} />
-          <EndingSoonSidebar markets={endingSoon} loading={catalogLoading} />
+          <TrendingSidebar markets={trending} catalog={all} loading={catalogLoading} sport={sport} />
+          <EndingSoonSidebar markets={endingSoon} loading={catalogLoading} sport={sport} />
         </aside>
       </div>
 
@@ -323,7 +382,10 @@ export function HomePage() {
       <section className="mt-8">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl font-extrabold">{hip4.markets.live} markets</h2>
-          <Link to="/markets?view=open" className="text-sm font-bold text-[var(--accent-dark)]">
+          <Link
+            to={sport === 'all' ? '/markets?view=open' : `/markets?view=open&sport=${sport}`}
+            className="text-sm font-bold text-[var(--accent-dark)]"
+          >
             {hip4.home.seeAll}
           </Link>
         </div>

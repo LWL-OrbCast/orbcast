@@ -17,9 +17,11 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 import httpx
 from dotenv import load_dotenv
 
+from sports_api import host_for
+
 logger = logging.getLogger(__name__)
 
-API_BASE = "https://v3.football.api-sports.io"
+API_BASE = host_for("football")
 EPL_LEAGUE_ID = 39
 LIVE_TTL_SEC = 90.0
 NEXT_TTL_SEC = 180.0
@@ -33,13 +35,20 @@ FINISHED_SHORTS = frozenset({"FT", "AET", "PEN", "AWD", "WO"})
 PL_LOGO = "https://media.api-sports.io/football/leagues/39.png"
 _ENV_PATH = Path(__file__).parent / ".env"
 
-# TODO(multi-replica): this cache is process-local. Each Railway replica / uvicorn
-# worker will miss independently and each miss spends API-Football quota (live +
-# events). Before scaling past 1 backend, share the payload (Supabase row like
-# forex_rates_cache, or only the worker_leader refreshes). Phone → /api/sports/*
-# does not count; only v3.football.api-sports.io calls do.
+# Process-local first; shared JSON in `news_cache` key `sports:epl:board`
+# so N Railway replicas do not each spend API-Football on the same miss.
+# Phone → /api/sports/* does not count; only v3.football.api-sports.io calls do.
+_BOARD_CACHE_KEY = "sports:epl:board"
+_BOARD_TTL_SEC = LIVE_TTL_SEC
 _cache: Dict[str, tuple[float, Any]] = {}
 _locks: Dict[str, asyncio.Lock] = {}
+_store: Any = None
+
+
+def configure_sports_store(client: Any) -> None:
+    """Wire the Supabase service-role client so the EPL board is replica-safe."""
+    global _store
+    _store = client
 
 
 def _ensure_env() -> None:
@@ -273,11 +282,54 @@ async def _events(fixture_id: int) -> List[Dict[str, Any]]:
     )
 
 
-async def get_epl_board() -> Dict[str, Any]:
-    season = epl_season()
-    if not is_configured():
-        return _empty_board(season, False)
+def _shared_board_get() -> Optional[Dict[str, Any]]:
+    if _store is None:
+        return None
+    try:
+        res = (
+            _store.table("news_cache")
+            .select("items,updated_at")
+            .eq("key", _BOARD_CACHE_KEY)
+            .maybe_single()
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning("sports overlay cache read failed: %s", type(exc).__name__)
+        return None
+    row = res.data if res else None
+    if not row or not isinstance(row.get("items"), dict):
+        return None
+    raw_at = row.get("updated_at")
+    if not raw_at:
+        return None
+    try:
+        ts = datetime.fromisoformat(str(raw_at).replace("Z", "+00:00"))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - ts).total_seconds()
+    except ValueError:
+        return None
+    if age > _BOARD_TTL_SEC:
+        return None
+    return row["items"]
 
+
+def _shared_board_set(board: Dict[str, Any]) -> None:
+    if _store is None:
+        return
+    try:
+        _store.table("news_cache").upsert(
+            {
+                "key": _BOARD_CACHE_KEY,
+                "items": board,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).execute()
+    except Exception as exc:
+        logger.warning("sports overlay cache write failed: %s", type(exc).__name__)
+
+
+async def _build_epl_board(season: int) -> Dict[str, Any]:
     live: List[Dict[str, Any]] = []
     upcoming: List[Dict[str, Any]] = []
     try:
@@ -306,3 +358,26 @@ async def get_epl_board() -> Dict[str, Any]:
         "featured": featured,
         "upcoming": upcoming[:8],
     }
+
+
+async def get_epl_board() -> Dict[str, Any]:
+    season = epl_season()
+    if not is_configured():
+        return _empty_board(season, False)
+
+    hit = _cache_get("epl:board")
+    if isinstance(hit, dict):
+        return hit
+
+    async with _lock_for("epl:board"):
+        hit = _cache_get("epl:board")
+        if isinstance(hit, dict):
+            return hit
+        shared = await asyncio.to_thread(_shared_board_get)
+        if isinstance(shared, dict) and shared.get("configured"):
+            _cache_set("epl:board", shared, _BOARD_TTL_SEC)
+            return shared
+        board = await _build_epl_board(season)
+        _cache_set("epl:board", board, _BOARD_TTL_SEC)
+        await asyncio.to_thread(_shared_board_set, board)
+        return board

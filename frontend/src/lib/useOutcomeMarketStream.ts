@@ -438,8 +438,11 @@ export function useOutcomeMarketStream(
     };
   }, [legsKey, enabled, ingestPrints, commitMids]);
 
+  // REST tape only while WS is down. Seed fetch on legsKey already fills
+  // the first paint; polling recentTrades on top of a live trades socket
+  // is what burned the HL IP weight budget.
   useEffect(() => {
-    if (!enabled || !outcomeIds.length) return;
+    if (!enabled || !outcomeIds.length || connected || !tapeReady) return;
     let cancelled = false;
     const pull = () => {
       void Promise.all(outcomeIds.map((id) => fetchOutcomeRecentTrades(id)))
@@ -448,12 +451,13 @@ export function useOutcomeMarketStream(
         })
         .catch(() => undefined);
     };
+    pull();
     const timer = setInterval(pull, TAPE_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [enabled, legsKey, outcomeIds, ingestPrints]);
+  }, [enabled, legsKey, outcomeIds, ingestPrints, connected, tapeReady]);
 
   return {
     connected,

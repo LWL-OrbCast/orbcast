@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -8,6 +8,7 @@ import {
   formatHighlightVolume,
   impliedPercent,
   questionSiblings,
+  questionTicketMarket,
   type ListedMarket,
   type OutcomeSide,
 } from '@hip4';
@@ -20,6 +21,8 @@ import { ProbabilityChart, type ProbSeries } from './ProbabilityChart';
 import { RollingNumber } from './RollingNumber';
 import { ShareMarketButton } from './ShareMarketButton';
 import { FeaturedEventSkeleton } from './skeleton';
+import { MarketSymbol } from './MarketSymbol';
+import { useFeaturedAutoplay } from '../../../frontend/src/lib/useFeaturedAutoplay';
 
 export function FeaturedEvent({
   markets,
@@ -31,12 +34,8 @@ export function FeaturedEvent({
   loading: boolean;
 }) {
   const { hip4 } = useCopy();
-  const [idx, setIdx] = useState(0);
-  const featured = markets[Math.min(idx, Math.max(0, markets.length - 1))] ?? null;
-
-  useEffect(() => {
-    if (idx >= markets.length) setIdx(0);
-  }, [idx, markets.length]);
+  const { index, progress, go, pause, resume } = useFeaturedAutoplay(markets.length);
+  const featured = markets[Math.min(index, Math.max(0, markets.length - 1))] ?? null;
 
   if (loading && !featured) {
     return <FeaturedEventSkeleton />;
@@ -44,19 +43,67 @@ export function FeaturedEvent({
   if (!featured) {
     return (
       <div className="flex h-[280px] min-w-0 items-center justify-center rounded-3xl border border-[var(--border)] bg-white">
-        <p className="text-sm font-semibold text-[var(--text-2)]">{hip4.home.noLive}</p>
+        <p className="text-sm font-semibold text-[var(--text-2)]">{hip4.home.noTodayEvents}</p>
       </div>
     );
   }
 
+  const vol = formatHighlightVolume(featured.volumeUsd);
   return (
-    <FeaturedCard
-      market={featured}
-      catalog={catalog}
-      index={idx}
-      total={markets.length}
-      onDot={setIdx}
-    />
+    <div onPointerEnter={pause} onPointerLeave={resume}>
+      <article className="card-shadow w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-[var(--border)] bg-white">
+        <FeaturedCard market={featured} catalog={catalog} />
+        <div className="flex items-center justify-between gap-3 px-4 pb-4 sm:px-6">
+          <div className="min-w-0 truncate text-xs font-semibold text-[var(--text-3)]">
+            {vol !== '—' ? <span>{vol} Vol</span> : null}
+            {vol !== '—' && featured.expiresAt ? <span> · </span> : null}
+            {featured.expiresAt ? <span>Ends {formatEndDate(featured.expiresAt)}</span> : null}
+          </div>
+          {markets.length > 1 ? (
+            <FeaturedDots total={markets.length} index={index} progress={progress} onDot={go} />
+          ) : null}
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function FeaturedDots({
+  total,
+  index,
+  progress,
+  onDot,
+}: {
+  total: number;
+  index: number;
+  progress: number;
+  onDot: (i: number) => void;
+}) {
+  return (
+    <div className="ml-auto flex items-center justify-end gap-1.5">
+      {Array.from({ length: total }, (_, i) => {
+        const on = i === index;
+        return (
+          <button
+            key={i}
+            type="button"
+            aria-label={`Featured ${i + 1}`}
+            aria-current={on ? 'true' : undefined}
+            onClick={() => onDot(i)}
+            className={`relative overflow-hidden rounded-full transition-[width] duration-200 ${
+              on ? 'h-2 w-8 bg-[var(--border)]' : 'h-2 w-2 bg-[var(--border)] hover:bg-[var(--text-3)]'
+            }`}
+          >
+            {on ? (
+              <span
+                className="absolute inset-y-0 left-0 rounded-full bg-[var(--ink)]"
+                style={{ width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%` }}
+              />
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -121,18 +168,12 @@ function FeaturedCountdown({ market }: { market: ListedMarket }) {
   return null;
 }
 
-function FeaturedCard({
+const FeaturedCard = memo(function FeaturedCard({
   market,
   catalog,
-  index,
-  total,
-  onDot,
 }: {
   market: ListedMarket;
   catalog: ListedMarket[];
-  index: number;
-  total: number;
-  onDot: (i: number) => void;
 }) {
   const navigate = useNavigate();
   const { hip4 } = useCopy();
@@ -141,7 +182,6 @@ function FeaturedCard({
   const yes = market.sides[0];
   const no = market.sides[1];
   const yesNo = !market.multiOutcome && market.sides.length >= 2;
-  const vol = formatHighlightVolume(market.volumeUsd);
   const siblings = useMemo(
     () => (catalog.length ? questionSiblings(catalog, market) : [market]),
     [catalog, market],
@@ -234,9 +274,10 @@ function FeaturedCard({
     });
   }, [legs, chartQ.data, range.interval, rangePending, multiLeg, resolvedKey]);
 
+  const ticketId = questionTicketMarket(catalog, market).id;
   const go = (side?: 0 | 1) => {
     const q = side === 1 ? '?side=1' : side === 0 ? '?side=0' : '';
-    navigate(`/market/${market.id}${q}`);
+    navigate(`/market/${ticketId}${q}`);
   };
 
   const pickSeries = (key: string) => {
@@ -244,18 +285,20 @@ function FeaturedCard({
   };
 
   return (
-    <article className="card-shadow w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-[var(--border)] bg-white">
       <div className="min-w-0 p-4 sm:p-6">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <FeaturedCountdown market={market} />
           </div>
-          <ShareMarketButton marketId={market.id} title={heading} />
+          <ShareMarketButton marketId={ticketId} title={heading} />
         </div>
 
-        <h2 className="break-words text-[1.35rem] font-extrabold leading-tight tracking-tight sm:text-[1.65rem] lg:text-[1.85rem]">
-          {heading}
-        </h2>
+        <div className="flex items-center gap-3">
+          <MarketSymbol market={market} size={48} questionLevel className="shrink-0 rounded-[14px]" />
+          <h2 className="min-w-0 flex-1 whitespace-normal break-words text-[1.35rem] font-extrabold leading-[1.25] tracking-tight sm:text-[1.65rem] lg:text-[1.85rem]">
+            {heading}
+          </h2>
+        </div>
         {showSubtitle ? (
           <p className="mt-1 truncate text-sm text-[var(--text-2)]">{market.subtitle}</p>
         ) : null}
@@ -324,28 +367,5 @@ function FeaturedCard({
           )}
         </div>
       </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 sm:px-6">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--text-3)]">
-          {vol !== '—' ? <span>{vol} Vol</span> : null}
-          {market.expiresAt ? <span>Ends {formatEndDate(market.expiresAt)}</span> : null}
-        </div>
-        {total > 1 ? (
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: total }, (_, i) => (
-              <button
-                key={i}
-                type="button"
-                aria-label={`Featured ${i + 1}`}
-                onClick={() => onDot(i)}
-                className={`h-2 rounded-full transition-all ${
-                  i === index ? 'w-5 bg-[var(--accent)]' : 'w-2 bg-[var(--border)]'
-                }`}
-              />
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </article>
   );
-}
+});

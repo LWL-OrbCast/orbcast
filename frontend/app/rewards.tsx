@@ -25,6 +25,7 @@ import { colors } from '../src/theme/colors';
 import { useAuth } from '../src/providers/AuthContext';
 import { useAppStore } from '../src/store/appStore';
 import { RewardsTabSkeleton } from '../src/components/skeleton/RewardsTabSkeleton';
+import { pushRouteOnce } from '../src/lib/pushRouteOnce';
 import {
   fetchRewardsProfile,
   applyReferralCode,
@@ -407,7 +408,7 @@ export default function RewardsScreen() {
           <Text style={styles.emptyText}>{t('rewards.loginRequired')}</Text>
           <TouchableOpacity
             style={styles.loginButton}
-            onPress={() => router.push('/login')}
+            onPress={() => pushRouteOnce(router, '/login')}
           >
             <Text style={styles.loginButtonText}>{t('rewards.loginButton')}</Text>
           </TouchableOpacity>

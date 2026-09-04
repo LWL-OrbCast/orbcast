@@ -51,6 +51,7 @@ import {
   redeemOutcomePair,
   redeemQuestionBundle,
   isOutcomeRailPx,
+  impliedPercent,
   type Hex,
   type OutcomeCandleInterval,
   type OutcomePrint,
@@ -62,6 +63,7 @@ import { OddsPill, YES_COLOR, NO_COLOR, LEG_PALETTE } from '../../src/components
 import { ProbabilityChart, type ProbSeries } from '../../src/components/sports/ProbabilityLine';
 // import type { ChartTick } from '../../src/components/sports/ChartTradeTicks';
 import { MarketActivityTabs } from '../../src/components/sports/MarketActivityTabs';
+import { MarketSymbol } from '../../src/components/sports/MarketSymbol';
 import { OrderTicketModal, type OrderTicketPayload } from '../../src/components/sports/OrderTicketModal';
 import { ConfirmModal } from '../../src/components/ConfirmModal';
 import { RollingNumber } from '../../src/components/RollingNumber';
@@ -70,7 +72,7 @@ import { showErrorToast } from '../../src/lib/toast';
 import { useAppStore } from '../../src/store/appStore';
 import { useSeamlessSetup } from '../../src/providers/SeamlessSetupProvider';
 import { useHyperliquidSpotState } from '../../src/lib/useHyperliquidAccountStream';
-import { pushRouteOnce } from '../../src/lib/pushRouteOnce';
+import { pushRouteOnce, navigateRouteOnce } from '../../src/lib/pushRouteOnce';
 import { useTranslation } from 'react-i18next';
 import { useBuilderConfig } from '../../src/providers/BuilderConfigProvider';
 
@@ -294,25 +296,6 @@ export default function MarketScreen() {
     if (stream.prints.length) ticksArmed.current = true;
   }, [stream.prints]);
 
-  useEffect(() => {
-    if (!focused || !legsKey || streamLegs.length === 0 || candleQuery.isPending) return;
-    const handle = setTimeout(() => {
-      for (const r of CHART_RANGES) {
-        if (r.interval === range.interval) continue;
-        void queryClient.prefetchQuery({
-          queryKey: ['hip4', 'candles', legsKey, r.interval],
-          staleTime: 15_000,
-          queryFn: () => {
-            const end = Date.now();
-            const span = CANDLE_INTERVAL_MS[r.interval] * 4500;
-            return fetchLegCandleSamples(streamLegs, r.interval, end - span, end);
-          },
-        });
-      }
-    }, 500);
-    return () => clearTimeout(handle);
-  }, [focused, legsKey, range.interval, candleQuery.isPending, queryClient, streamLegs]);
-
   const rangePending = candleQuery.isPending;
 
   const resolvedKey =
@@ -362,9 +345,9 @@ export default function MarketScreen() {
   const bookQuery = useQuery({
     queryKey: ['hip4', 'book', selectedLeg?.outcomeId, selectedLeg?.side],
     queryFn: () => fetchOutcomeBook(selectedLeg!.outcomeId, selectedLeg!.side),
-    enabled: !!selectedLeg && market?.status === 'live' && fillMode === 'now' && focused,
+    enabled: !!selectedLeg && focused,
     staleTime: 1_500,
-    refetchInterval: focused ? 3_000 : false,
+    refetchInterval: focused ? 8_000 : false,
   });
 
   const ordersQuery = useQuery({
@@ -445,11 +428,8 @@ export default function MarketScreen() {
   const heading = multiLeg
     ? market?.questionName || market?.title || ''
     : market?.title ?? '';
-  const subtitle = multiLeg
-    ? t('hip4.ticket.mutuallyExclusiveOutcomes')
-    : market && !looksLikePipeMeta(market.subtitle)
-      ? market.subtitle
-      : '';
+  const subtitle =
+    multiLeg || !market || looksLikePipeMeta(market.subtitle) ? '' : market.subtitle;
 
   const sizeUsd = Number(size);
   const spotBalances = useMemo(() => {
@@ -884,7 +864,22 @@ export default function MarketScreen() {
           {catalogQuery.isLoading && !market ? (
             <ActivityIndicator color={colors.accent.gold} style={{ marginTop: 40 }} />
           ) : !market ? (
-            <Text style={styles.missing}>{t('hip4.ticket.missing')}</Text>
+            <View style={styles.missingCard}>
+              <View style={styles.missingIcon}>
+                <Ionicons name="flag-outline" size={22} color={colors.accent.goldDark} />
+              </View>
+              <Text style={styles.missingTitle}>{t('hip4.ticket.missing')}</Text>
+              <Text style={styles.missingHint}>{t('hip4.ticket.missingHint')}</Text>
+              <TouchableOpacity
+                style={styles.missingCta}
+                onPress={() => navigateRouteOnce(router, '/markets')}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={t('hip4.ticket.missingCta')}
+              >
+                <Text style={styles.missingCtaLabel}>{t('hip4.ticket.missingCta')}</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <>
               <MarketCountdown
@@ -898,7 +893,10 @@ export default function MarketScreen() {
                 startsAt={market.startsAt}
                 expiresAt={market.expiresAt}
               />
-              <Text style={styles.title}>{heading}</Text>
+              <View style={styles.titleRow}>
+                <MarketSymbol market={market} size={44} radius={14} questionLevel={multiLeg} />
+                <Text style={styles.title}>{heading}</Text>
+              </View>
               {subtitle ? <Text style={styles.sub}>{subtitle}</Text> : null}
 
               <View style={styles.hero}>
@@ -940,29 +938,57 @@ export default function MarketScreen() {
                 </View>
               </View>
 
-              <View style={styles.pills}>
-                {streamLegs.map((leg, i) => {
-                  const label = multiLeg
-                    ? siblings.find((m) => m.outcomeId === leg.outcomeId)?.legLabel ?? t('hip4.yes')
-                    : leg.side === 0
-                      ? (market.sides[0]?.name ?? t('hip4.yes'))
-                      : (market.sides[1]?.name ?? t('hip4.no'));
-                  return (
-                    <OddsPill
-                      key={leg.key}
-                      label={label}
-                      probability={liveProb(leg)}
-                      variant={leg.side === 0 ? 'yes' : 'no'}
-                      accent={accentFor(i, leg.side)}
-                      selected={leg.key === resolvedKey}
-                      onPress={() => {
-                        setSelectedKey(leg.key);
-                        void Haptics.selectionAsync();
-                      }}
-                    />
-                  );
-                })}
-              </View>
+              {multiLeg ? (
+                <View style={styles.legList}>
+                  {streamLegs.map((leg, i) => {
+                    const label =
+                      siblings.find((m) => m.outcomeId === leg.outcomeId)?.legLabel ?? t('hip4.yes');
+                    const on = leg.key === resolvedKey;
+                    const accent = accentFor(i, leg.side);
+                    const px = liveProb(leg);
+                    return (
+                      <TouchableOpacity
+                        key={leg.key}
+                        style={[styles.legRow, on && styles.legRowOn]}
+                        onPress={() => {
+                          setSelectedKey(leg.key);
+                          void Haptics.selectionAsync();
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <View style={[styles.legDot, { backgroundColor: accent }]} />
+                        <Text style={styles.legName} numberOfLines={1}>
+                          {label}
+                        </Text>
+                        <Text style={[styles.legPct, { color: accent }]}>{impliedPercent(px)}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.pills}>
+                  {streamLegs.map((leg, i) => {
+                    const label =
+                      leg.side === 0
+                        ? (market.sides[0]?.name ?? t('hip4.yes'))
+                        : (market.sides[1]?.name ?? t('hip4.no'));
+                    return (
+                      <OddsPill
+                        key={leg.key}
+                        label={label}
+                        probability={liveProb(leg)}
+                        variant={leg.side === 0 ? 'yes' : 'no'}
+                        accent={accentFor(i, leg.side)}
+                        selected={leg.key === resolvedKey}
+                        onPress={() => {
+                          setSelectedKey(leg.key);
+                          void Haptics.selectionAsync();
+                        }}
+                      />
+                    );
+                  })}
+                </View>
+              )}
 
               <Text style={styles.quoteLine} numberOfLines={1}>
                 {t('hip4.ticket.buyAt', {
@@ -1513,6 +1539,8 @@ export default function MarketScreen() {
                 tapeReady={stream.tapeReady}
                 multiLeg={multiLeg}
                 legNames={legNames}
+                book={bookQuery.data}
+                bookLoading={bookQuery.isPending}
               />
             </>
           )}
@@ -1590,9 +1618,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  title: { color: colors.text.primary, fontSize: 26, fontWeight: '800', marginTop: 6, lineHeight: 32 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 },
+  title: { flex: 1, color: colors.text.primary, fontSize: 26, fontWeight: '800', lineHeight: 32 },
   sub: { color: colors.text.secondary, fontSize: 14, marginTop: 6 },
-  missing: { color: colors.text.secondary, marginTop: 24, fontSize: 15 },
+  missingCard: {
+    marginTop: 28,
+    backgroundColor: colors.background.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border.primary,
+    paddingHorizontal: 22,
+    paddingVertical: 28,
+    alignItems: 'center',
+  },
+  missingIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#ECFDF3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  missingTitle: {
+    fontFamily: fonts.extraBold,
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.text.primary,
+    textAlign: 'center',
+  },
+  missingHint: {
+    marginTop: 8,
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.text.secondary,
+    textAlign: 'center',
+  },
+  missingCta: {
+    marginTop: 20,
+    alignSelf: 'stretch',
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.text.primary,
+    backgroundColor: colors.accent.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  missingCtaLabel: {
+    fontFamily: fonts.extraBold,
+    fontSize: 15,
+    color: '#F5F7F6',
+  },
   hero: {
     marginTop: 20,
     backgroundColor: colors.background.card,
@@ -1657,6 +1735,36 @@ const styles = StyleSheet.create({
   },
   rangeLabelOn: { color: colors.text.primary, fontFamily: fonts.bold },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 18 },
+  legList: { marginTop: 18, gap: 8 },
+  legRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border.primary,
+    backgroundColor: colors.background.card,
+  },
+  legRowOn: {
+    borderColor: colors.text.primary,
+    backgroundColor: colors.background.secondary,
+  },
+  legDot: { width: 8, height: 8, borderRadius: 4 },
+  legName: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: colors.text.primary,
+  },
+  legPct: {
+    fontFamily: fonts.extraBold,
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+  },
   quoteLine: {
     marginTop: 10,
     minHeight: 18,

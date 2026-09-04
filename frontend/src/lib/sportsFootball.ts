@@ -1,4 +1,5 @@
 import { api } from './api';
+import { isTimestampOnLocalDay } from './marketCatalog';
 
 export type FootballTeam = {
   id: number | null;
@@ -47,6 +48,13 @@ export type EplBoard = {
 export async function fetchEplBoard(): Promise<EplBoard> {
   const { data } = await api.get<EplBoard>('/sports/football/epl');
   return data;
+}
+
+/** Live now, or kickoff on the local calendar day — not tomorrow’s date-feed row. */
+export function isTodaysEplFixture(fixture: FootballFixture, now = Date.now()): boolean {
+  if (fixture.finished) return false;
+  if (fixture.live) return true;
+  return isTimestampOnLocalDay(fixture.kickoffAt, now);
 }
 
 export function formatFootballEvent(ev: FootballEvent): string {

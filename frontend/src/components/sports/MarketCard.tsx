@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import type { ListedMarket } from '../../lib/hip4';
-import { impliedPercent } from '../../lib/hip4';
+import { displayListedTitle, impliedPercent } from '../../lib/hip4';
 import { colors } from '../../theme/colors';
+import { MarketSymbol } from './MarketSymbol';
 import { OddsPill, YES_COLOR } from './OddsPill';
 import { ProbabilityLine } from './ProbabilityLine';
 import { useTranslation } from 'react-i18next';
@@ -49,12 +50,17 @@ export function MarketCard({ market, onPress }: Props) {
         <View style={[styles.dot, market.status === 'live' && styles.dotLive]} />
         <Text style={styles.status}>{statusLabel}</Text>
       </View>
-      <Text style={styles.title} numberOfLines={3}>
-        {market.title}
-      </Text>
-      <Text style={styles.sub} numberOfLines={1}>
-        {market.subtitle}
-      </Text>
+      <View style={styles.titleRow}>
+        <MarketSymbol market={market} size={36} radius={12} questionLevel={market.multiOutcome} />
+        <View style={styles.titleBlock}>
+          <Text style={styles.title} numberOfLines={3}>
+            {displayListedTitle(market)}
+          </Text>
+          <Text style={styles.sub} numberOfLines={1}>
+            {market.multiOutcome ? market.legLabel : market.subtitle}
+          </Text>
+        </View>
+      </View>
       <View style={styles.chartWrap}>
         <ProbabilityLine points={spark} height={46} color={YES_COLOR} />
         <Text style={styles.heroPct}>{impliedPercent(yes?.probability ?? null)}</Text>
@@ -85,7 +91,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   dot: {
     width: 7,

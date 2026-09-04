@@ -8,12 +8,13 @@ import {
   rankActiveWallets,
   shortWallet,
   type ListedMarket,
+  type OutcomeBook,
   type OutcomePrint,
 } from '../../lib/hip4';
 import { YES_COLOR, NO_COLOR } from './OddsPill';
 import { useTranslation } from 'react-i18next';
 
-type Tab = 'trades' | 'active' | 'rules';
+type Tab = 'trades' | 'bids' | 'active' | 'rules';
 
 type Props = {
   market: ListedMarket;
@@ -21,6 +22,8 @@ type Props = {
   tapeReady: boolean;
   multiLeg: boolean;
   legNames: Record<number, string>;
+  book?: OutcomeBook | null;
+  bookLoading?: boolean;
 };
 
 function timeAgo(ms: number, t: (key: string) => string): string {
@@ -31,11 +34,22 @@ function timeAgo(ms: number, t: (key: string) => string): string {
   return `${Math.floor(d / 3_600_000)}h`;
 }
 
-export function MarketActivityTabs({ market, prints, tapeReady, multiLeg, legNames }: Props) {
+export function MarketActivityTabs({
+  market,
+  prints,
+  tapeReady,
+  multiLeg,
+  legNames,
+  book,
+  bookLoading,
+}: Props) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('trades');
   const rules = marketRulesFacts(market, multiLeg, t);
   const active = tab === 'active' ? rankActiveWallets(prints, 10) : [];
+  const asks = book?.asks.slice(0, 10) ?? [];
+  const bids = book?.bids.slice(0, 10) ?? [];
+  const maxSz = Math.max(1, ...asks.map((l) => l.sz), ...bids.map((l) => l.sz));
 
   return (
     <View style={styles.wrap}>
@@ -43,6 +57,7 @@ export function MarketActivityTabs({ market, prints, tapeReady, multiLeg, legNam
         {(
           [
             ['trades', 'hip4.activity.trades'],
+            ['bids', 'hip4.activity.bids'],
             ['active', 'hip4.activity.active'],
             ['rules', 'hip4.activity.rules'],
           ] as const
@@ -55,7 +70,9 @@ export function MarketActivityTabs({ market, prints, tapeReady, multiLeg, legNam
               onPress={() => setTab(id)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.tabLabel, on && styles.tabLabelOn]}>{t(key)}</Text>
+              <Text style={[styles.tabLabel, on && styles.tabLabelOn]} numberOfLines={1}>
+                {t(key)}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -67,7 +84,7 @@ export function MarketActivityTabs({ market, prints, tapeReady, multiLeg, legNam
             {tapeReady ? t('hip4.activity.noTrades') : t('hip4.activity.waitingPrints')}
           </Text>
         ) : (
-          prints.slice(0, 12).map((p) => {
+          prints.slice(0, 8).map((p) => {
             const buy = p.takerSide === 'buy';
             const tone = buy ? YES_COLOR : NO_COLOR;
             const fromMap = p.outcomeId >= 0 ? legNames[p.outcomeId] : undefined;
@@ -88,6 +105,53 @@ export function MarketActivityTabs({ market, prints, tapeReady, multiLeg, legNam
               </View>
             );
           })
+        )
+      ) : null}
+
+      {tab === 'bids' ? (
+        !book && bookLoading ? (
+          <Text style={styles.empty}>{t('hip4.activity.waitingPrints')}</Text>
+        ) : !book || (asks.length === 0 && bids.length === 0) ? (
+          <Text style={styles.empty}>{t('hip4.activity.bidsEmpty')}</Text>
+        ) : (
+          <View style={styles.bookGrid}>
+            <View style={styles.bookCol}>
+              <Text style={[styles.bookHead, { color: colors.status.error }]}>{t('hip4.activity.ask')}</Text>
+              {asks.map((lvl, i) => (
+                <View key={`a${i}`} style={styles.bookRow}>
+                  <View
+                    style={[
+                      styles.bookBar,
+                      {
+                        width: `${Math.max(8, (lvl.sz / maxSz) * 100)}%`,
+                        backgroundColor: `${colors.status.error}1A`,
+                      },
+                    ]}
+                  />
+                  <Text style={styles.bookPx}>{(lvl.px * 100).toFixed(1)}¢</Text>
+                  <Text style={styles.bookSz}>{lvl.sz.toFixed(0)}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={styles.bookCol}>
+              <Text style={[styles.bookHead, { color: YES_COLOR }]}>{t('hip4.activity.bid')}</Text>
+              {bids.map((lvl, i) => (
+                <View key={`b${i}`} style={styles.bookRow}>
+                  <View
+                    style={[
+                      styles.bookBar,
+                      {
+                        width: `${Math.max(8, (lvl.sz / maxSz) * 100)}%`,
+                        backgroundColor: `${YES_COLOR}1F`,
+                      },
+                    ]}
+                  />
+                  <Text style={styles.bookPx}>{(lvl.px * 100).toFixed(1)}¢</Text>
+                  <Text style={styles.bookSz}>{lvl.sz.toFixed(0)}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         )
       ) : null}
 
@@ -142,7 +206,7 @@ const styles = StyleSheet.create({
   tabOn: { backgroundColor: colors.background.card },
   tabLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.text.tertiary,
   },
   tabLabelOn: { color: colors.text.primary, fontFamily: fonts.bold },
@@ -212,5 +276,37 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 13,
     color: colors.text.primary,
+  },
+  bookGrid: { flexDirection: 'row', gap: 16 },
+  bookCol: { flex: 1 },
+  bookHead: {
+    fontFamily: fonts.extraBold,
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  bookRow: {
+    position: 'relative',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  bookBar: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 4,
+  },
+  bookPx: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    color: colors.text.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  bookSz: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: colors.text.secondary,
+    fontVariant: ['tabular-nums'],
   },
 });

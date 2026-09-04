@@ -24,9 +24,10 @@ Wallet, auth, Bridge2, relayer, push, rewards, and the HIP-4 ticket work. Sports
 ## Next
 
 1. **Sports join** — map HIP-4 `outcomeId` to a fixture when sports books exist; featured tap should open that book, not “first live crypto”.
-2. **Kernel extract** — move agent / builder / withdraw into `hlKernel.ts`; delete leftover perp dump.
-3. **Backend prune** — drop unused market-data helpers from `server.py`.
-4. **Shared sports cache** — before >1 Railway replica, stop process-local API-Football spends (`TODO(multi-replica)` in `sports_football.py`).
+2. **Home featured slider (mobile)** — done (`FeaturedEventSlider`). All mixes up to 5 categories.
+3. **Kernel extract** — move agent / builder / withdraw into `hlKernel.ts`; delete leftover perp dump.
+4. **Backend prune** — drop unused market-data helpers from `server.py`.
+5. **Shared sports cache** — done (`news_cache` key `sports:epl:board`). Keep other leagues on the same pattern if you add them.
 
 ---
 

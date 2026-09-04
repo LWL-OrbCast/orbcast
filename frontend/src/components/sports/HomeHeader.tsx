@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { BRAND_NAME } from '../../lib/brand';
 import { usePositionActivity } from '../../hooks/usePositionActivity';
 import { navigateRouteOnce } from '../../lib/pushRouteOnce';
+import { CatalogSearchModal } from './CatalogSearchModal';
 
 const MARK = require('../../../assets/images/orbcast-logo-circle.png');
 
@@ -28,6 +29,7 @@ export function HomeHeader({ onPressBell, onPressAvatar, kicker }: Props) {
   const router = useRouter();
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const activity = usePositionActivity();
+  const [searchOpen, setSearchOpen] = useState(false);
   const kickerLabel = kicker ?? t('hip4.header.home');
   const positionsLabel =
     activity.badge > 0
@@ -46,6 +48,15 @@ export function HomeHeader({ onPressBell, onPressAvatar, kicker }: Props) {
         </View>
       </View>
       <View style={styles.actions}>
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => setSearchOpen(true)}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={t('hip4.header.search')}
+        >
+          <Ionicons name="search" size={18} color={colors.text.primary} />
+        </TouchableOpacity>
         {onPressBell ? (
           <TouchableOpacity
             style={styles.iconBtn}
@@ -119,6 +130,7 @@ export function HomeHeader({ onPressBell, onPressAvatar, kicker }: Props) {
           </View>
         )}
       </View>
+      <CatalogSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} />
     </View>
   );
 }

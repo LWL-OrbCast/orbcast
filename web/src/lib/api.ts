@@ -1,4 +1,5 @@
 import { API_BASE } from './config';
+import { isTimestampOnLocalDay } from '@hip4/catalog';
 
 export type BuilderConfig = {
   address: string;
@@ -38,6 +39,47 @@ async function api<T>(
 
 export function fetchHealth() {
   return api<{ status?: string }>('/health');
+}
+
+export type EplBoard = {
+  configured: boolean;
+  season: number;
+  league: { id: number; name: string; logo: string };
+  featured: EplFixture | null;
+  upcoming: EplFixture[];
+};
+
+export type EplFixture = {
+  fixtureId: number;
+  kickoffAt: number | null;
+  status: string;
+  statusLong: string;
+  elapsed: number | null;
+  live: boolean;
+  finished: boolean;
+  home: { id: number | null; name: string; logo: string };
+  away: { id: number | null; name: string; logo: string };
+  goals: { home: number | null; away: number | null };
+  league: { id: number; name: string; logo: string; round: string };
+  venue: string;
+  events?: Array<{
+    elapsed: number | null;
+    extra: number | null;
+    type: string;
+    detail: string;
+    team: string;
+    player: string;
+  }>;
+};
+
+export function fetchEplBoard() {
+  return api<EplBoard>('/sports/football/epl');
+}
+
+export function isTodaysEplFixture(fixture: EplFixture, now = Date.now()): boolean {
+  if (fixture.finished) return false;
+  if (fixture.live) return true;
+  return isTimestampOnLocalDay(fixture.kickoffAt, now);
 }
 
 export function fetchBuilderConfig(walletAddress?: string) {

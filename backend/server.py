@@ -55,7 +55,7 @@ from rewards import (
     TIERS,
     ApplyReferralRequest,
 )
-from sports_football import get_epl_board
+from sports_football import configure_sports_store, get_epl_board
 
 import privy_import
 import _ur_compat as ur_api
@@ -78,6 +78,7 @@ supabase: Optional[SupabaseClient] = None
 
 if SUPABASE_URL and SUPABASE_SERVICE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    configure_sports_store(supabase)
     logger.info("Supabase client initialized for push notifications")
 else:
     logger.warning("Supabase not configured (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY missing). Push notifications disabled.")

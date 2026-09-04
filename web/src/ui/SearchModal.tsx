@@ -10,8 +10,8 @@ import {
 import { applySearch } from '@hip4/catalog';
 import { interpolate, useCopy } from '../lib/copy';
 import { useCatalog } from './catalog';
-import { IconClose, IconSearch, SportIcon } from './icons';
-import { sportIdForListed } from './SportCategoryBar';
+import { IconClose, IconSearch } from './icons';
+import { MarketSymbol } from './MarketSymbol';
 
 const PREVIEW = 6;
 
@@ -128,9 +128,7 @@ export function SearchModal({
                       navigate(`/market/${m.id}`);
                     }}
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#ECFDF3] text-[var(--accent-dark)]">
-                      <SportIcon id={sportIdForListed(m)} size={16} />
-                    </span>
+                    <MarketSymbol market={m} size={36} className="rounded-xl" />
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 text-sm font-semibold leading-snug">{heading}</span>
                     </span>

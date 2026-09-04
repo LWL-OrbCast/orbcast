@@ -184,8 +184,11 @@ export function useMarketStream(legs: StreamLeg[], enabled = true) {
     };
   }, [enabled, legsKey, outcomeIds, schedule]);
 
+  // REST tape is a fallback only. WS `trades` already keeps the print list
+  // current — polling recentTrades (weight 20+/coin / 8s) is what blew the
+  // HL IP budget on an otherwise idle ticket.
   useEffect(() => {
-    if (!enabled || !outcomeIds.length) return;
+    if (!enabled || !outcomeIds.length || connected || !tapeReady) return;
     let cancelled = false;
     const pull = () => {
       void Promise.all(outcomeIds.map((id) => fetchOutcomeRecentTrades(id)))
@@ -201,12 +204,13 @@ export function useMarketStream(legs: StreamLeg[], enabled = true) {
         })
         .catch(() => undefined);
     };
+    pull();
     const timer = setInterval(pull, TAPE_POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [enabled, legsKey, outcomeIds]);
+  }, [enabled, legsKey, outcomeIds, connected, tapeReady]);
 
   return { connected, midsByKey, bboByKey, prints, tapeReady };
 }

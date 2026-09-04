@@ -53,6 +53,7 @@ import {
 import { formatEndDate, formatHms, looksLikeScheduleSubtitle } from './formatTime';
 import { IconCash } from './icons';
 import { MarketActivity } from './MarketActivity';
+import { MarketSymbol } from './MarketSymbol';
 import {
   OrderTicketModal,
   type OrderTicketError,
@@ -221,13 +222,6 @@ export function MarketPage() {
   const quotePx = action === 'buy' ? quoteAsk : quoteBid;
   const quoteReady = quoteBid != null || quoteAsk != null;
 
-  const bookQ = useQuery({
-    queryKey: ['hip4', 'book', selectedLeg?.outcomeId, selectedLeg?.side],
-    queryFn: () => fetchOutcomeBook(selectedLeg!.outcomeId, selectedLeg!.side),
-    enabled: !!selectedLeg && selectedMarket?.status === 'live',
-    refetchInterval: 4000,
-  });
-
   const range = WEB_CHART_RANGES.find((r) => r.id === rangeId) ?? WEB_CHART_RANGES[2];
   const legsKey = streamLegs.map((l) => l.key).join(',');
 
@@ -242,23 +236,16 @@ export function MarketPage() {
     refetchInterval: range.interval === '1m' ? 20_000 : 45_000,
   });
 
-  useEffect(() => {
-    if (!legsKey || streamLegs.length === 0 || chartQ.isPending) return;
-    const handle = setTimeout(() => {
-      for (const r of WEB_CHART_RANGES) {
-        if (r.id === range.id) continue;
-        void qc.prefetchQuery({
-          queryKey: ['hip4', 'candles', legsKey, r.id],
-          staleTime: 15_000,
-          queryFn: () => {
-            const end = Date.now();
-            return fetchLegCandleSamples(streamLegs, r.interval, end - r.spanMs, end);
-          },
-        });
-      }
-    }, 500);
-    return () => clearTimeout(handle);
-  }, [legsKey, range.id, chartQ.isPending, qc, streamLegs]);
+  const bookQ = useQuery({
+    queryKey: ['hip4', 'book', selectedLeg?.outcomeId, selectedLeg?.side],
+    queryFn: () => fetchOutcomeBook(selectedLeg!.outcomeId, selectedLeg!.side),
+    enabled:
+      !!selectedLeg &&
+      selectedMarket?.status === 'live' &&
+      (Number(usd) > 0 || ticket != null),
+    staleTime: 4_000,
+    refetchInterval: 8_000,
+  });
 
   const ordersQ = useQuery({
     queryKey: ['hip4', 'open-orders', address],
@@ -600,13 +587,8 @@ export function MarketPage() {
   }, [chartSeries, rangePending, resolvedKey]);
 
   const pickLeg = (key: string) => {
-    const leg = streamLegs.find((l) => l.key === key);
-    if (!leg || !market) return;
+    if (!streamLegs.some((l) => l.key === key)) return;
     setSelectedKey(key);
-    if (multiLeg) {
-      const next = siblings.find((m) => m.outcomeId === leg.outcomeId);
-      if (next && next.id !== market.id) navigate(`/market/${next.id}`);
-    }
   };
 
   const pickAction = (next: 'buy' | 'sell') => {
@@ -651,7 +633,36 @@ export function MarketPage() {
   };
 
   if (catalog.isLoading && !market) return <MarketPageSkeleton />;
-  if (!market || !selectedMarket) return <p className="font-bold">{hip4.ticket.missing}</p>;
+  if (!market || !selectedMarket) {
+    return (
+      <div className="mx-auto w-full max-w-lg py-2">
+        <button
+          type="button"
+          onClick={() => (canGoBack ? navigate(-1) : navigate('/markets'))}
+          className="bg-transparent p-0 text-sm font-semibold text-[var(--text-2)]"
+        >
+          ← {canGoBack ? commonCopy.goBack : hip4.ticket.back}
+        </button>
+        <div className="mt-8 rounded-2xl border border-[var(--border)] bg-white px-6 py-10 text-center shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.08)]">
+          <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#ECFDF3] text-[var(--accent-dark)]">
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+              <line x1="4" y1="22" x2="4" y2="15" />
+            </svg>
+          </span>
+          <h1 className="text-xl font-extrabold leading-snug">{hip4.ticket.missing}</h1>
+          <p className="mt-2 text-sm font-medium leading-5 text-[var(--text-2)]">{hip4.ticket.missingHint}</p>
+          <button
+            type="button"
+            onClick={() => navigate('/markets')}
+            className="btn-stamp btn-primary mt-6 w-full py-3 text-sm"
+          >
+            {hip4.ticket.missingCta}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const statusLabel =
     market.status === 'live'
@@ -666,12 +677,12 @@ export function MarketPage() {
   const heading = multiLeg
     ? market.questionName || displayListedTitle(market)
     : displayListedTitle(market);
-  const subtitle = multiLeg
-    ? hip4.ticket.mutuallyExclusiveOutcomes
-    : market.subtitle &&
-        !looksLikePipeMeta(market.subtitle) &&
-        !isEconomicsCatalogMarket(market) &&
-        !looksLikeScheduleSubtitle(market.subtitle, market.expiresAt)
+  const subtitle =
+    !multiLeg &&
+    market.subtitle &&
+    !looksLikePipeMeta(market.subtitle) &&
+    !isEconomicsCatalogMarket(market) &&
+    !looksLikeScheduleSubtitle(market.subtitle, market.expiresAt)
       ? market.subtitle
       : '';
   const volumeUsd = multiLeg
@@ -782,7 +793,10 @@ export function MarketPage() {
             {stream.connected ? hip4.status.live : hip4.status.connecting}
           </span>
         </div>
-        <h1 className="mt-2 text-2xl font-extrabold">{heading}</h1>
+        <div className="mt-2 flex items-center gap-3">
+          <MarketSymbol market={market} size={44} questionLevel={multiLeg} className="rounded-[14px]" />
+          <h1 className="min-w-0 flex-1 text-2xl font-extrabold leading-tight">{heading}</h1>
+        </div>
         {subtitle ? <p className="mt-1 text-sm text-[var(--text-2)]">{subtitle}</p> : null}
 
         <div className="mt-4">

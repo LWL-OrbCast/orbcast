@@ -239,10 +239,7 @@ export function MarketPage() {
   const bookQ = useQuery({
     queryKey: ['hip4', 'book', selectedLeg?.outcomeId, selectedLeg?.side],
     queryFn: () => fetchOutcomeBook(selectedLeg!.outcomeId, selectedLeg!.side),
-    enabled:
-      !!selectedLeg &&
-      selectedMarket?.status === 'live' &&
-      (Number(usd) > 0 || ticket != null),
+    enabled: !!selectedLeg && selectedMarket?.status !== 'settled',
     staleTime: 4_000,
     refetchInterval: 8_000,
   });

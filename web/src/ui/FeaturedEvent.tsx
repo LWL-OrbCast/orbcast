@@ -22,7 +22,7 @@ import { RollingNumber } from './RollingNumber';
 import { ShareMarketButton } from './ShareMarketButton';
 import { FeaturedEventSkeleton } from './skeleton';
 import { MarketSymbol } from './MarketSymbol';
-import { useFeaturedAutoplay } from '../../../frontend/src/lib/useFeaturedAutoplay';
+import { useFeaturedAutoplay } from '@hip4/autoplay';
 
 export function FeaturedEvent({
   markets,

@@ -157,6 +157,7 @@ export default defineConfig(({ mode }) => {
         { find: /^@hip4$/, replacement: path.join(frontendLib, 'hip4.ts') },
         { find: '@hip4/catalog', replacement: path.join(frontendLib, 'marketCatalog.ts') },
         { find: '@hip4/symbol', replacement: path.join(frontendLib, 'marketSymbol.ts') },
+        { find: '@hip4/autoplay', replacement: path.join(frontendLib, 'useFeaturedAutoplay.ts') },
         { find: '@hip4/endpoints', replacement: path.join(frontendLib, 'hlEndpoints.ts') },
         { find: '@hip4/runtime', replacement: path.join(frontendLib, 'hip4Runtime.ts') },
         { find: '@theme/colors', replacement: path.resolve(root, '../frontend/src/theme/colors.ts') },

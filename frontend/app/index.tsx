@@ -71,7 +71,6 @@ export default function HomeScreen() {
     staleTime: 45_000,
     refetchInterval: (q) => (q.state.data?.featured?.live ? 45_000 : 90_000),
     retry: 1,
-    enabled: chip === 'football',
   });
   const showEplHero = chip === 'football';
   const eplTapTarget =

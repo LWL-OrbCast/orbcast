@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { EplFixture } from '../lib/api';
 import { interpolate, useCopy } from '../lib/copy';
 import { formatHms } from './formatTime';
+import { RollingNumber } from './RollingNumber';
 import bannerArsenalVilla from '../../../frontend/assets/images/symbols/featured-arsenal-villa.webp';
 import bannerStadium from '../../../frontend/assets/images/symbols/featured-banner.webp';
 
@@ -45,6 +46,32 @@ function formatKickoff(ms: number): string {
   });
 }
 
+function StatusPill({ label, live }: { label: string; live?: boolean }) {
+  return (
+    <span
+      className={`mb-3 inline-flex items-center gap-2 self-center rounded-full border px-3 py-1 ${
+        live
+          ? 'border-[var(--accent)]/40 bg-[#ECFDF3]'
+          : 'border-[var(--border)] bg-[var(--bg-2)]'
+      }`}
+    >
+      {live ? (
+        <span className="relative flex h-3 w-3 items-center justify-center">
+          <span className="absolute h-3 w-3 animate-ping rounded-full bg-[var(--accent)]/40" />
+          <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
+        </span>
+      ) : null}
+      <span
+        className={`text-[12px] font-extrabold uppercase tracking-[1.2px] ${
+          live ? 'text-[var(--accent-dark)]' : 'text-[var(--text)]'
+        }`}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
 export function EplFeatured({ fixture, href }: { fixture: EplFixture; href: string }) {
   const { hip4 } = useCopy();
   const [now, setNow] = useState(() => Date.now());
@@ -83,72 +110,83 @@ export function EplFeatured({ fixture, href }: { fixture: EplFixture; href: stri
             'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 42%, rgba(255,255,255,0.88) 68%, #fff 100%)',
         }}
       />
-      <article className="relative z-10 flex min-h-[280px] min-w-0 flex-col justify-end p-4 sm:min-h-[320px] sm:p-6">
-        <div className="mb-3 flex items-center gap-3">
-          {fixture.league.logo ? (
-            <img
-              src={fixture.league.logo}
-              alt={hip4.featured.epl}
-              className="h-10 w-10 object-contain"
-            />
-          ) : (
-            <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--text-3)]">
-              {hip4.featured.epl}
-            </p>
-          )}
-          {fixture.live ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--live-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--live-dark)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--live)]" />
-              {fixture.elapsed != null
-                ? `${hip4.status.live} · ${interpolate(hip4.featured.minute, { n: fixture.elapsed })}`
-                : hip4.status.live}
-            </span>
-          ) : fixture.status === 'HT' ? (
-            <span className="text-[11px] font-bold text-[var(--text-3)]">{hip4.featured.ht}</span>
-          ) : startRemain != null ? (
-            <div className="min-w-0 text-sm font-bold tabular-nums text-[var(--text-2)]">
-              {formatHms(startRemain)}
-              <span className="ml-1.5 text-[11px] font-semibold text-[var(--text-3)]">
-                {hip4.featured.startsIn}
-              </span>
-            </div>
-          ) : (
-            <span className="text-[11px] font-bold text-[var(--text-3)]">
-              {fixture.statusLong || fixture.status}
-            </span>
-          )}
-        </div>
+      <article className="relative z-10 flex min-h-[260px] min-w-0 flex-col justify-end px-3.5 pb-3.5 pt-3 sm:min-h-[300px] sm:px-6 sm:pb-5 sm:pt-4">
+        {fixture.league.logo ? (
+          <img
+            src={fixture.league.logo}
+            alt={hip4.featured.epl}
+            className="mx-auto mb-1.5 h-[68px] w-[72px] object-contain"
+          />
+        ) : (
+          <p className="mb-1 text-center text-[13px] font-extrabold tracking-wide text-[var(--text)]">
+            {hip4.featured.epl}
+          </p>
+        )}
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          <div className="flex min-w-0 flex-col items-center gap-2">
-            {fixture.home.logo ? (
-              <img src={fixture.home.logo} alt="" className="h-14 w-14 object-contain" />
-            ) : (
-              <div className="h-14 w-14 rounded-full bg-[var(--bg-2)]" />
-            )}
-            <p className="w-full truncate text-center text-sm font-extrabold">{fixture.home.name}</p>
+        {fixture.finished ? (
+          <StatusPill label={hip4.featured.ft} />
+        ) : fixture.status === 'HT' ? (
+          <StatusPill label={hip4.featured.ht} />
+        ) : fixture.live ? (
+          <StatusPill
+            live
+            label={
+              fixture.elapsed != null
+                ? `${hip4.status.live} · ${interpolate(hip4.featured.minute, { n: fixture.elapsed })}`
+                : hip4.status.live
+            }
+          />
+        ) : startRemain != null ? (
+          <div className="mb-3 flex flex-col items-center gap-0.5">
+            <RollingNumber
+              value={startRemain}
+              format={formatHms}
+              variant="clock"
+              durationMs={280}
+              className="text-[18px] font-extrabold tracking-wide text-[var(--text)] sm:text-[20px]"
+            />
+            <span className="text-xs font-semibold text-[var(--text-2)]">{hip4.featured.startsIn}</span>
           </div>
-          <p className="shrink-0 text-center text-xl font-extrabold tabular-nums">
+        ) : (
+          <StatusPill label={fixture.statusLong || fixture.status} />
+        )}
+
+        <div className="mb-3.5 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
+          <div className="flex min-w-0 flex-col items-center gap-1.5">
+            {fixture.home.logo ? (
+              <img src={fixture.home.logo} alt="" className="h-11 w-11 object-contain sm:h-14 sm:w-14" />
+            ) : (
+              <div className="h-11 w-11 rounded-full bg-[var(--bg-2)] sm:h-14 sm:w-14" />
+            )}
+            <p className="w-full truncate text-center text-[13px] font-bold sm:text-sm">{fixture.home.name}</p>
+          </div>
+          <p
+            className={`shrink-0 px-2 text-center font-extrabold tabular-nums ${
+              showScore && mid ? 'text-[22px]' : 'text-base'
+            }`}
+          >
             {showScore && mid ? mid : hip4.featured.vs}
           </p>
-          <div className="flex min-w-0 flex-col items-center gap-2">
+          <div className="flex min-w-0 flex-col items-center gap-1.5">
             {fixture.away.logo ? (
-              <img src={fixture.away.logo} alt="" className="h-14 w-14 object-contain" />
+              <img src={fixture.away.logo} alt="" className="h-11 w-11 object-contain sm:h-14 sm:w-14" />
             ) : (
-              <div className="h-14 w-14 rounded-full bg-[var(--bg-2)]" />
+              <div className="h-11 w-11 rounded-full bg-[var(--bg-2)] sm:h-14 sm:w-14" />
             )}
-            <p className="w-full truncate text-center text-sm font-extrabold">{fixture.away.name}</p>
+            <p className="w-full truncate text-center text-[13px] font-bold sm:text-sm">{fixture.away.name}</p>
           </div>
         </div>
 
         {events.length > 0 ? (
-          <ul className="mt-4 space-y-1 text-center text-xs font-semibold text-[var(--text-2)]">
+          <ul className="min-h-9 space-y-0.5 text-center text-xs font-semibold text-[var(--text-2)]">
             {events.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
         ) : hint ? (
-          <p className="mt-4 truncate text-center text-xs font-semibold text-[var(--text-3)]">{hint}</p>
+          <p className="min-h-9 truncate text-center text-xs font-semibold leading-9 text-[var(--text-2)]">
+            {hint}
+          </p>
         ) : null}
       </article>
     </Link>

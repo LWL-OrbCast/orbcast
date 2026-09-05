@@ -34,6 +34,7 @@ export const CATALOG_CHIPS: SportChipId[] = [
   'stocks',
   'economics',
   'football',
+  'esports',
   'nfl',
   'nba',
   'basketball',
@@ -46,11 +47,11 @@ export const CATALOG_CHIPS: SportChipId[] = [
   'f1',
   'handball',
   'tennis',
-  'esports',
 ];
 
 export const SPORT_ONLY_CHIPS: SportOnlyChipId[] = [
   'football',
+  'esports',
   'nfl',
   'nba',
   'basketball',
@@ -63,7 +64,6 @@ export const SPORT_ONLY_CHIPS: SportOnlyChipId[] = [
   'f1',
   'handball',
   'tennis',
-  'esports',
 ];
 
 export type ApiSportsProduct = {

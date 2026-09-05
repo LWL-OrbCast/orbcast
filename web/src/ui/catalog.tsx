@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -322,7 +322,6 @@ export function HomePage() {
     staleTime: 45_000,
     refetchInterval: (q) => (q.state.data?.featured?.live ? 45_000 : 90_000),
     retry: 1,
-    enabled: sport === 'football',
   });
   const eplFixture =
     sport === 'football' &&
@@ -331,6 +330,13 @@ export function HomePage() {
     isTodaysEplFixture(eplQ.data.featured)
       ? eplQ.data.featured
       : null;
+  const eplResolved = eplQ.isFetched || eplQ.isError;
+  const showEplHero = Boolean(eplFixture);
+  const holdSlider = sport === 'football' && !eplResolved && !eplFixture;
+  const sliderHeld = useRef(featured);
+  if (!holdSlider) sliderHeld.current = featured;
+  const sliderMarkets = holdSlider ? sliderHeld.current : featured;
+  const heroKey = showEplHero ? 'epl' : holdSlider ? 'hold' : sport;
   const eplHref = (() => {
     const footballBook =
       featured.find((m) => sportOnlyChipForMarket(m) === 'football') ??
@@ -364,11 +370,18 @@ export function HomePage() {
               {hip4.home.seeAll}
             </Link>
           </div>
-          {eplFixture ? (
-            <EplFeatured fixture={eplFixture} href={eplHref} />
-          ) : (
-            <FeaturedEvent key={sport} markets={featured} catalog={all} loading={catalogLoading} />
-          )}
+          <div key={heroKey} className="page-enter">
+            {showEplHero && eplFixture ? (
+              <EplFeatured fixture={eplFixture} href={eplHref} />
+            ) : (
+              <FeaturedEvent
+                key={heroKey}
+                markets={sliderMarkets}
+                catalog={all}
+                loading={catalogLoading}
+              />
+            )}
+          </div>
         </div>
         <aside className="flex min-w-0 w-full max-w-full flex-col gap-4">
           <TrendingSidebar markets={trending} catalog={all} loading={catalogLoading} sport={sport} />

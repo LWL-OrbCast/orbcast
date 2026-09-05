@@ -67,14 +67,19 @@ Arsenal vs Aston Villa uses `frontend/assets/images/symbols/featured-arsenal-vil
 
 One HTTP call to that sport’s host = one quota unit on **that** product, whether the body has 1 match or 380. Phone → `/api/sports/*` does **not** count. Team/league logos on `media.api-sports.io` do **not** count ([API-Football terms](https://www.api-football.com/terms)).
 
-This app’s cache-miss spend while Home is open on a live match:
+This app’s cache-miss spend (phones hit our backend only; logos on `media.api-sports.io` are free):
 
-1. `GET /fixtures?live=39-39` (hyphenated ids — a lone `live=39` is rejected)
-2. `GET /fixtures/events?fixture=…` for the featured live game only
+| Window | Upstream |
+|--------|----------|
+| Always | `GET /fixtures?live=39-39` (hyphenated ids — a lone `live=39` is rejected) |
+| No live EPL | `GET /fixtures?league=39&season=…&next=8` (Pro). If that is empty, `league=39&season=…&date=today` |
+| Live featured | `GET /fixtures/events?fixture=…` for that game only |
 
-TTL is ~90s. The composed board is shared in Supabase `news_cache` (`sports:epl:board`) so every replica reads the same payload. Many phones still cost those two upstream calls per window, not per replica.
+Do **not** call `live=all` (whole-world live list). TTL is ~90s for the board / live / events, ~180s for upcoming. The composed board is shared in Supabase `news_cache` (`sports:epl:board`) so every replica reads the same payload. A miss is 1–2 upstream calls, not one per phone.
 
-**Free plan (100/day, ~10/min) per product:** current season and `next=` are locked on football; `live=all` / `live=39-39` still work. Fine for proving the banner. **Pro (7,500/day, 300/min)** is plenty for this overlay plus later standings / lineups / a few leagues — see [pricing](https://www.api-football.com/pricing) and [how ratelimit works](https://www.api-football.com/news/post/how-ratelimit-works). They stop you at the cap; they do not overbill.
+Quiet day upper bound (one replica, cache working): ~1 live check / 90s ≈ 960/day, plus an upcoming refresh every 180s ≈ 480/day → **~1.5k**. Live match: live + events every 90s ≈ **~1.9k**. Pro is 7,500/day / 300/min.
+
+**Pro (7,500/day)** unlocks `next=` / current season. Keep the overlay this tight even so — headroom is for later leagues, not a wider poll. They stop you at the cap; they do not overbill. See [pricing](https://www.api-football.com/pricing) and [how ratelimit works](https://www.api-football.com/news/post/how-ratelimit-works).
 
 ### Multi-replica
 
@@ -92,7 +97,7 @@ Do **not** add a dedicated sports table. Later overlays can reuse other `news_ca
 | `frontend/src/lib/sportsFootball.ts` | Types + `fetchEplBoard()` via existing `api` axios |
 | `frontend/src/components/sports/FeaturedMatchCard.tsx` | Mobile EPL banner |
 | `frontend/app/index.tsx` | Pull-to-refresh invalidates `['sports', 'football', 'epl']` |
-| `web/src/ui/EplFeatured.tsx` | Desktop EPL banner (All / Football when the fixture is today) |
+| `web/src/ui/EplFeatured.tsx` | Desktop EPL banner (Football chip when the fixture is today) |
 
 English strings: `hip4.featured.*` and `hip4.sport.*` in `frontend/src/i18n/locales/en.json`.
 

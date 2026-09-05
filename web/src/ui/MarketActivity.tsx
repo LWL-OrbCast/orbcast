@@ -58,7 +58,7 @@ export function MarketActivity({
 
   return (
     <section className="mt-6">
-      <div className="mb-3 flex gap-1 overflow-x-auto rounded-xl bg-[var(--bg-2)] p-1 no-scrollbar">
+      <div className="mb-3 flex gap-0.5 overflow-x-auto rounded-xl bg-[var(--bg-2)] p-1 no-scrollbar sm:gap-1">
         {tabs.map((row) => {
           const on = tab === row.id;
           return (
@@ -66,7 +66,7 @@ export function MarketActivity({
               key={row.id}
               type="button"
               onClick={() => setTab(row.id)}
-              className={`min-w-0 flex-1 whitespace-nowrap rounded-lg px-2 py-2 text-[12px] ${
+              className={`min-w-0 flex-1 whitespace-nowrap rounded-lg px-1.5 py-1.5 text-[10px] leading-tight sm:px-2 sm:py-2 sm:text-[12px] ${
                 on
                   ? 'bg-white font-extrabold text-[var(--text)] shadow-sm'
                   : 'font-semibold text-[var(--text-3)] hover:text-[var(--text)]'
@@ -80,7 +80,7 @@ export function MarketActivity({
 
       {tab === 'trades' ? (
         prints.length === 0 ? (
-          <p className="py-2 text-[13px] font-medium leading-5 text-[var(--text-2)]">
+          <p className="py-2 text-[12px] font-medium leading-5 text-[var(--text-2)] sm:text-[13px]">
             {tapeReady ? hip4.activity.noTrades : hip4.activity.waitingPrints}
           </p>
         ) : (
@@ -98,7 +98,7 @@ export function MarketActivity({
               return (
                 <li
                   key={p.id}
-                  className="flex items-center gap-2 border-b border-[var(--border)] py-2.5 text-[12px]"
+                  className="flex items-center gap-2 border-b border-[var(--border)] py-2 text-[11px] sm:py-2.5 sm:text-[12px]"
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />
                   <span className="min-w-0 flex-[1.2] truncate font-bold" style={{ color: tone }}>
@@ -122,9 +122,9 @@ export function MarketActivity({
 
       {tab === 'rules' ? (
         <div className="space-y-2 py-1">
-          <p className="text-[13px] font-medium leading-5 text-[var(--text-2)]">{rules.body}</p>
+          <p className="text-[12px] font-medium leading-5 text-[var(--text-2)] sm:text-[13px]">{rules.body}</p>
           {rules.facts.map((line) => (
-            <p key={line} className="text-[13px] font-semibold text-[var(--text)]">
+            <p key={line} className="text-[12px] font-semibold text-[var(--text)] sm:text-[13px]">
               {line}
             </p>
           ))}
@@ -133,13 +133,13 @@ export function MarketActivity({
 
       {tab === 'bids' ? (
         !book && bookLoading ? (
-          <p className="py-2 text-[13px] font-medium text-[var(--text-2)]">{hip4.activity.waitingPrints}</p>
+          <p className="py-2 text-[12px] font-medium text-[var(--text-2)] sm:text-[13px]">{hip4.activity.waitingPrints}</p>
         ) : !book || (asks.length === 0 && bids.length === 0) ? (
-          <p className="py-2 text-[13px] font-medium leading-5 text-[var(--text-2)]">
+          <p className="py-2 text-[12px] font-medium leading-5 text-[var(--text-2)] sm:text-[13px]">
             {hip4.activity.bidsEmpty}
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-4 text-[12px]">
+          <div className="grid grid-cols-2 gap-3 text-[11px] sm:gap-4 sm:text-[12px]">
             <div>
               <div className="mb-1.5 font-extrabold text-[var(--danger)]">Ask</div>
               {asks.map((lvl, i) => (
@@ -172,7 +172,7 @@ export function MarketActivity({
 
       {tab === 'active' ? (
         active.length === 0 ? (
-          <p className="py-2 text-[13px] font-medium leading-5 text-[var(--text-2)]">
+          <p className="py-2 text-[12px] font-medium leading-5 text-[var(--text-2)] sm:text-[13px]">
             {hip4.activity.activeEmpty}
           </p>
         ) : (
@@ -180,7 +180,7 @@ export function MarketActivity({
             {active.map((w, i) => (
               <li
                 key={w.address}
-                className="flex items-center gap-2 border-b border-[var(--border)] py-2.5 text-[13px]"
+                className="flex items-center gap-2 border-b border-[var(--border)] py-2 text-[11px] sm:py-2.5 sm:text-[13px]"
               >
                 <span className="w-5 font-extrabold text-[var(--accent-dark)]">{i + 1}</span>
                 <span className="min-w-0 flex-1 truncate font-semibold">{shortWallet(w.address)}</span>

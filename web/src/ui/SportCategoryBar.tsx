@@ -14,7 +14,7 @@ export function sportIdForListed(m: ListedMarket): SportChipId {
 const EDGE_PX = 8;
 
 const arrowBtn =
-  'absolute top-1/2 z-[2] flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg border border-white/15 bg-[var(--ink)]/22 text-white/90 shadow-sm backdrop-blur-[2px] transition-[background-color,box-shadow,filter] duration-150 hover:bg-[var(--ink)]/38 hover:text-white hover:brightness-110 hover:shadow-md active:bg-[var(--ink)]/48';
+  'absolute top-1/2 z-[2] hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg border border-white/15 bg-[var(--ink)]/22 text-white/90 shadow-sm backdrop-blur-[2px] transition-[background-color,box-shadow,filter] duration-150 hover:bg-[var(--ink)]/38 hover:text-white hover:brightness-110 hover:shadow-md active:bg-[var(--ink)]/48 sm:flex';
 
 export function SportCategoryBar() {
   const { hip4 } = useCopy();
@@ -91,7 +91,7 @@ export function SportCategoryBar() {
           </div>
           {canLeft ? (
             <>
-              <div className="pointer-events-none absolute inset-y-0 left-0 z-[1] w-14 bg-gradient-to-r from-white via-white/85 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-[1] hidden w-14 bg-gradient-to-r from-white via-white/85 to-transparent sm:block" />
               <button
                 type="button"
                 aria-label="Previous categories"
@@ -104,7 +104,7 @@ export function SportCategoryBar() {
           ) : null}
           {canRight ? (
             <>
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-14 bg-gradient-to-l from-white via-white/85 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-[1] hidden w-14 bg-gradient-to-l from-white via-white/85 to-transparent sm:block" />
               <button
                 type="button"
                 aria-label="More categories"

@@ -15,7 +15,6 @@ import {
   IconCheck,
   IconCopy,
   IconLogout,
-  IconMenu,
   IconPercent,
   IconPositions,
   IconSearch,
@@ -49,21 +48,10 @@ function ShellFrame() {
   const { search, setSearch } = useCatalogUi();
   const location = useLocation();
   const [acctOpen, setAcctOpen] = useState(false);
-  const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const acctRef = useRef<HTMLDivElement>(null);
-  const navRef = useRef<HTMLDivElement>(null);
   const showSports = location.pathname === '/' || location.pathname === '/markets';
-  const showHamburger = !(hydrating || authenticated);
-  const links = [
-    { to: '/', label: hip4.nav.home, end: true },
-    { to: '/markets', label: hip4.nav.markets, end: false },
-    { to: '/positions', label: hip4.nav.positions, end: false },
-    { to: '/rewards', label: hip4.nav.rewards, end: false },
-    { to: '/wallet', label: hip4.nav.wallet, end: false },
-    { to: '/fees', label: profileCopy.fees, end: false },
-  ];
   const accountLinks = [
     { to: '/wallet', label: hip4.nav.wallet, icon: IconWallet },
     { to: '/positions', label: hip4.nav.positions, icon: IconPositions },
@@ -72,7 +60,6 @@ function ShellFrame() {
   ];
 
   useEffect(() => {
-    setNavOpen(false);
     setAcctOpen(false);
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [location.pathname]);
@@ -85,7 +72,6 @@ function ShellFrame() {
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (!acctRef.current?.contains(t)) setAcctOpen(false);
-      if (!navRef.current?.contains(t)) setNavOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
@@ -157,7 +143,6 @@ function ShellFrame() {
                   type="button"
                   onClick={() => {
                     setAcctOpen((v) => !v);
-                    setNavOpen(false);
                   }}
                   aria-label={hip4.header.wallet}
                   className="flex h-10 w-10 items-center justify-center rounded-full"
@@ -252,44 +237,6 @@ function ShellFrame() {
                 </button>
               </>
             )}
-
-            {showHamburger ? (
-              <div className="relative" ref={navRef}>
-                <button
-                  type="button"
-                  aria-label="Menu"
-                  aria-expanded={navOpen}
-                  onClick={() => {
-                    setNavOpen((v) => !v);
-                    setAcctOpen(false);
-                  }}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text)]"
-                >
-                  <IconMenu size={20} />
-                </button>
-                {navOpen ? (
-                  <div className="absolute right-0 mt-2 w-52 overflow-hidden rounded-2xl border border-[var(--border)] bg-white py-1 shadow-lg">
-                    {links.map((l) => (
-                      <NavLink
-                        key={l.to}
-                        to={l.to}
-                        end={l.end}
-                        onClick={() => setNavOpen(false)}
-                        className={({ isActive }) =>
-                          `block px-3 py-2.5 text-sm font-semibold ${
-                            isActive
-                              ? 'bg-[#ECFDF3] text-[var(--accent-dark)]'
-                              : 'text-[var(--text)] hover:bg-[var(--bg-2)]'
-                          }`
-                        }
-                      >
-                        {l.label}
-                      </NavLink>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         </div>
       </header>

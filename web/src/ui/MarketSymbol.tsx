@@ -7,6 +7,7 @@ import btc from '../../../frontend/assets/images/symbols/btc-icon.webp';
 import eth from '../../../frontend/assets/images/symbols/eth-icon.webp';
 import sol from '../../../frontend/assets/images/symbols/sol-icon.webp';
 import hype from '../../../frontend/assets/images/symbols/hype-logo.webp';
+import zec from '../../../frontend/assets/images/symbols/zec-icon.webp';
 import gold from '../../../frontend/assets/images/symbols/gold-icon.webp';
 import oil from '../../../frontend/assets/images/symbols/oil-icon.webp';
 import silver from '../../../frontend/assets/images/symbols/silver-icon.webp';
@@ -33,6 +34,7 @@ const SYMBOL_SRC: Record<MarketSymbolKey, string> = {
   eth,
   sol,
   hype,
+  zec,
   gold,
   oil,
   silver,

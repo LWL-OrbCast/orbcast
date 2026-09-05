@@ -11,6 +11,7 @@ const SYMBOL_SOURCE: Record<MarketSymbolKey, ImageSourcePropType> = {
   eth: require('../../../assets/images/symbols/eth-icon.webp'),
   sol: require('../../../assets/images/symbols/sol-icon.webp'),
   hype: require('../../../assets/images/symbols/hype-logo.webp'),
+  zec: require('../../../assets/images/symbols/zec-icon.webp'),
   gold: require('../../../assets/images/symbols/gold-icon.webp'),
   oil: require('../../../assets/images/symbols/oil-icon.webp'),
   silver: require('../../../assets/images/symbols/silver-icon.webp'),

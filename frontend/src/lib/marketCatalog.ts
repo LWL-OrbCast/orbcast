@@ -46,7 +46,7 @@ function compareVisibility(a: ListedMarket, b: ListedMarket): number {
 export type MarketCatalogView = 'endingSoon' | 'open' | 'upcoming';
 
 const CRYPTO_RE =
-  /\b(btc|bitcoin|eth|ether|ethereum|solana|sol|hype|doge|xrp|bnb|pepe|wif|crypto|defi|memecoin|hyperliquid|price\s*binary|price\s*bucket)\b/i;
+  /\b(btc|bitcoin|eth|ether|ethereum|solana|sol|hype|zec|zcash|doge|xrp|bnb|pepe|wif|crypto|defi|memecoin|hyperliquid|price\s*binary|price\s*bucket)\b/i;
 
 const ECONOMICS_RE =
   /\b(fomc|fed|federal reserve|ecb|boe|central bank|interest rate|policy rate|rate decision|rate cut|rate hike|cpi|nfp|non[- ]?farm|payroll|inflation|gdp|unemployment|macro|economics?|policy question|treasury)\b/i;
@@ -257,8 +257,8 @@ export function isTodaysCatalogEvent(m: ListedMarket, now = Date.now()): boolean
 /** All hero: one book per category first so UEFA / NFL / LoL / MLB / Fed can share the slider. */
 const FEATURED_MIX_CHIPS: SportChipId[] = [
   'football',
-  'nfl',
   'esports',
+  'nfl',
   'mlb',
   'crypto',
   'economics',

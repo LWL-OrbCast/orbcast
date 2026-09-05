@@ -10,7 +10,7 @@ import asyncio
 import logging
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 
@@ -227,35 +227,29 @@ def _normalize_event(ev: Any) -> Optional[Dict[str, Any]]:
 
 
 async def _fetch_live() -> List[Dict[str, Any]]:
-    # live= must be "all" or hyphenated ids (39-39). A lone "39" is rejected.
+    # live= must be hyphenated ids (39-39). Do not fall back to live=all —
+    # that spends a quota unit on every league worldwide.
     raw = await _get("/fixtures", {"live": f"{EPL_LEAGUE_ID}-{EPL_LEAGUE_ID}"})
     rows = [n for n in (_normalize_fixture(x) for x in raw) if n and _is_epl(n)]
-    if not rows:
-        raw = await _get("/fixtures", {"live": "all"})
-        rows = [n for n in (_normalize_fixture(x) for x in raw) if n and _is_epl(n)]
     rows.sort(key=lambda r: (r.get("elapsed") is None, -(r.get("elapsed") or 0)))
     return rows
 
 
-async def _fetch_today_epl() -> List[Dict[str, Any]]:
-    """Free plans lock current-season / next=; today's date feed still includes EPL."""
-    today = datetime.now(timezone.utc).date()
-    rows: List[Dict[str, Any]] = []
-    seen: set[int] = set()
-    for offset in (0, 1):
-        day = (today + timedelta(days=offset)).isoformat()
-        raw = await _get("/fixtures", {"date": day})
-        for item in raw:
-            n = _normalize_fixture(item)
-            if not n or not _is_epl(n):
-                continue
-            fid = n.get("fixtureId")
-            if not isinstance(fid, int) or fid in seen:
-                continue
-            seen.add(fid)
-            rows.append(n)
-        if rows:
-            break
+async def _fetch_upcoming_epl() -> List[Dict[str, Any]]:
+    """Pro: league + season + next=. Date-only worldwide dump is a last resort."""
+    season = epl_season()
+    raw = await _get(
+        "/fixtures",
+        {"league": EPL_LEAGUE_ID, "season": season, "next": 8},
+    )
+    rows = [n for n in (_normalize_fixture(x) for x in raw) if n and _is_epl(n)]
+    if not rows:
+        today = datetime.now(timezone.utc).date().isoformat()
+        raw = await _get(
+            "/fixtures",
+            {"league": EPL_LEAGUE_ID, "season": season, "date": today},
+        )
+        rows = [n for n in (_normalize_fixture(x) for x in raw) if n and _is_epl(n)]
     rows.sort(key=lambda r: r.get("kickoffAt") or 0)
     return rows
 
@@ -335,12 +329,12 @@ async def _build_epl_board(season: int) -> Dict[str, Any]:
     try:
         live = await _live_fixtures()
         if not live:
-            upcoming = await _cached("epl:today", NEXT_TTL_SEC, _fetch_today_epl)
+            upcoming = await _cached("epl:upcoming", NEXT_TTL_SEC, _fetch_upcoming_epl)
             upcoming = [r for r in upcoming if not r.get("finished")]
     except (httpx.HTTPError, ValueError, TypeError) as exc:
         logger.warning("api-sports epl board failed: %s", type(exc).__name__)
         live = _cache_stale("epl:live") or []
-        upcoming = _cache_stale("epl:today") or []
+        upcoming = _cache_stale("epl:upcoming") or []
 
     featured = live[0] if live else (upcoming[0] if upcoming else None)
     events: List[Dict[str, Any]] = []
@@ -377,7 +371,14 @@ async def get_epl_board() -> Dict[str, Any]:
         if isinstance(shared, dict) and shared.get("configured"):
             _cache_set("epl:board", shared, _BOARD_TTL_SEC)
             return shared
-        board = await _build_epl_board(season)
+        stale = _cache_stale("epl:board")
+        try:
+            board = await _build_epl_board(season)
+        except (httpx.HTTPError, ValueError, TypeError) as exc:
+            logger.warning("api-sports epl board rebuild failed: %s", type(exc).__name__)
+            if isinstance(stale, dict):
+                return stale
+            return _empty_board(season, True)
         _cache_set("epl:board", board, _BOARD_TTL_SEC)
         await asyncio.to_thread(_shared_board_set, board)
         return board

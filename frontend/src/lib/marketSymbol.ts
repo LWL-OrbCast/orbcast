@@ -12,6 +12,7 @@ export type MarketSymbolKey =
   | 'eth'
   | 'sol'
   | 'hype'
+  | 'zec'
   | 'gold'
   | 'oil'
   | 'silver'
@@ -46,6 +47,8 @@ const TICKER_KEY: Record<string, MarketSymbolKey> = {
   sol: 'sol',
   solana: 'sol',
   hype: 'hype',
+  zec: 'zec',
+  zcash: 'zec',
   gold: 'gold',
   xau: 'gold',
   silver: 'silver',
@@ -80,6 +83,7 @@ const BLOB_TICKER_RE: [RegExp, MarketSymbolKey][] = [
   [/\b(eth|ethereum|ether)\b/i, 'eth'],
   [/\b(solana|\bsol\b)\b/i, 'sol'],
   [/\bhype\b/i, 'hype'],
+  [/\b(zec|zcash)\b/i, 'zec'],
   [/\b(gold|xau)\b/i, 'gold'],
   [/\b(silver|xag)\b/i, 'silver'],
   [/\b(wti|brent|crude(?:\s+oil)?)\b/i, 'oil'],

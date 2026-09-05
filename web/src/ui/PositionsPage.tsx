@@ -445,7 +445,7 @@ export function PositionsPage() {
                   key={item.id}
                   type="button"
                   onClick={() => setTab(item.id)}
-                  className={`min-w-0 flex-1 truncate rounded-lg px-2 py-2 text-[11px] font-extrabold sm:text-xs ${
+                  className={`min-w-0 flex-1 truncate rounded-lg px-1.5 py-1.5 text-[10px] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
                     on
                       ? 'bg-white text-[var(--accent-dark)] shadow-sm'
                       : 'text-[var(--text-2)] hover:text-[var(--text)]'
@@ -456,7 +456,7 @@ export function PositionsPage() {
               );
             })}
           </div>
-          <p className="mt-2 text-xs text-[var(--text-3)]">
+          <p className="mt-2 text-[11px] text-[var(--text-3)] sm:text-xs">
             {tab === 'open'
               ? hip4.positions.openHint
               : tab === 'orders'

@@ -58,7 +58,7 @@ export function MarketActivity({
 
   return (
     <section className="mt-6">
-      <div className="mb-3 flex gap-0.5 overflow-x-auto rounded-xl bg-[var(--bg-2)] p-1 no-scrollbar sm:gap-1">
+      <div className="mb-3 flex gap-1 rounded-xl bg-[var(--bg-2)] p-0.5 no-scrollbar sm:gap-1 sm:p-1">
         {tabs.map((row) => {
           const on = tab === row.id;
           return (
@@ -66,7 +66,7 @@ export function MarketActivity({
               key={row.id}
               type="button"
               onClick={() => setTab(row.id)}
-              className={`min-w-0 flex-1 whitespace-nowrap rounded-lg px-1.5 py-1.5 text-[10px] leading-tight sm:px-2 sm:py-2 sm:text-[12px] ${
+              className={`min-w-0 flex-1 text-center rounded-lg px-1 py-1 text-[8px] leading-[1.15] sm:px-2 sm:py-2 sm:text-[12px] sm:leading-tight ${
                 on
                   ? 'bg-white font-extrabold text-[var(--text)] shadow-sm'
                   : 'font-semibold text-[var(--text-3)] hover:text-[var(--text)]'

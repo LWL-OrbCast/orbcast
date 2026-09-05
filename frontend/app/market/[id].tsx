@@ -1288,7 +1288,7 @@ export default function MarketScreen() {
                           setSize(next);
                         }}
                         keyboardType="decimal-pad"
-                        placeholder="10"
+                        placeholder="0"
                         placeholderTextColor={colors.text.muted}
                         style={styles.inputField}
                         autoFocus

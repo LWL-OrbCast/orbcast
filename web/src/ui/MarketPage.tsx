@@ -1055,7 +1055,7 @@ export function MarketPage() {
             ) : (
               <p className="mt-2 text-xs text-[var(--text-3)]">
                 {action === 'sell' && canSell && heldValue + 1e-9 < MIN_OUTCOME_NOTIONAL_USD
-                  ? hip4.ticket.leftoverUnderMin
+                  ? interpolate(hip4.ticket.leftoverUnderMin, { min: MIN_OUTCOME_NOTIONAL_USD })
                   : interpolate(hip4.ticket.minSize, { min: MIN_OUTCOME_NOTIONAL_USD })}
               </p>
             )}

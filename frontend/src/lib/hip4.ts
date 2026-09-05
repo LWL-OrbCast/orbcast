@@ -202,7 +202,7 @@ export type PlaceOutcomeOrderInput = {
   referencePx?: number;
   /** Share count override (e.g. sell-all). */
   sizeShares?: number;
-  /** Close leftover inventory the $10 book minimum would otherwise reject. */
+  /** Close leftover inventory the book minimum would otherwise reject. */
   skipMinNotional?: boolean;
 };
 
@@ -258,7 +258,7 @@ const SPORTS_RE =
   /\b(sport|football|soccer|nba|nfl|mlb|nhl|fifa|uefa|match|league|tennis|ufc|mma|e-?sports?|premier|bundesliga|laliga|world\s*cup|olympi|cricket|rugby|nascar|f1|formula\s*1|hockey|volleyball|handball|\bafl\b)\b/i;
 
 /** HIP-4 books reject orders below this notional, except a full close of leftover shares. */
-export const MIN_OUTCOME_NOTIONAL_USD = 10;
+export const MIN_OUTCOME_NOTIONAL_USD = 1;
 const MIN_NOTIONAL_USD = MIN_OUTCOME_NOTIONAL_USD;
 /** Market orders pad this far from mid so the IOC limit still fills. */
 export const OUTCOME_MARKET_SLIPPAGE = 0.08;
@@ -911,7 +911,7 @@ export type BuyPayoutEstimate = {
 /**
  * Live “To win” as the user types a buy size. Winning HIP-4 shares pay $1,
  * so payout ≈ shares. Uses the ask book when present; otherwise limit/mid.
- * Does not bump size to the $10 min — that would lie while they type.
+ * Does not bump size to the book min — that would lie while they type.
  */
 export function estimateBuyPayout(opts: {
   usd: number;
@@ -1273,7 +1273,8 @@ export function marketRulesFacts(
   const f = marketSpecFields(market);
   const expiry = market.expiresAt ? formatWhen(market.expiresAt) : null;
 
-  let body = multiLeg ? t('hip4.rules.multi') : t('hip4.rules.yesNo');
+  const min = MIN_OUTCOME_NOTIONAL_USD;
+  let body = multiLeg ? t('hip4.rules.multi', { min }) : t('hip4.rules.yesNo', { min });
 
   if (f.class === 'priceBinary' && f.underlying) {
     const strike = Number(f.targetPrice ?? f.threshold ?? f.target);
@@ -1284,9 +1285,10 @@ export function marketRulesFacts(
     body = t('hip4.rules.priceBinary', {
       underlying: displayOracleSymbol(f.underlying),
       strike: strikeBit,
+      min,
     });
   } else if (f.class === 'priceBucket' && f.underlying) {
-    body = t('hip4.rules.priceBucket', { underlying: displayOracleSymbol(f.underlying) });
+    body = t('hip4.rules.priceBucket', { underlying: displayOracleSymbol(f.underlying), min });
   }
 
   const facts: string[] = [];
@@ -1294,7 +1296,7 @@ export function marketRulesFacts(
   if (f.period) facts.push(t('hip4.rules.cadence', { period: f.period }));
   if (expiry) facts.push(t('hip4.rules.resolves', { when: expiry }));
   if (market.questionName) facts.push(t('hip4.rules.question', { name: market.questionName }));
-  facts.push(t('hip4.rules.minSize'));
+  facts.push(t('hip4.rules.minSize', { min }));
   facts.push(t('hip4.rules.fee'));
   facts.push(t('hip4.rules.settle'));
   return { body, facts };
@@ -2125,9 +2127,9 @@ function floorToLot(shares: number): number {
 }
 
 /**
- * HL rejects `sz * mid < $10` — the IOC/limit price is ignored. A $10 buy
- * sized at 0.61 still fails when mid is 0.55. Compare truncated notional so
- * float dust cannot look like $10 locally and $9.99 on L1.
+ * HL rejects `sz * mid` below MIN_OUTCOME_NOTIONAL_USD — the IOC/limit price
+ * is ignored. A $1 buy sized at 0.61 still fails when mid is 0.55. Compare
+ * truncated notional so float dust cannot look valid locally and fail on L1.
  */
 function wireOutcomePx(px: number): number {
   const n = Number(formatOutcomePx(px));
@@ -2153,7 +2155,7 @@ function minSharesForNotional(px: number): number {
   return shares;
 }
 
-/** Whole-share count that meets $10 notional after lot rounding. */
+/** Whole-share count that meets the book min notional after lot rounding. */
 export function outcomeSharesForUsd(usd: number, px: number): number {
   if (!(usd > 0) || !(px > 0)) return 0;
   const p = wireOutcomePx(px);
@@ -2256,7 +2258,7 @@ export async function placeOutcomeOrder(input: PlaceOutcomeOrderInput): Promise<
   }
 
   // Exact share counts (sells / close) must not be rounded up past inventory.
-  // USD-denominated buys still round up so a $10 chip clears the $10 floor.
+  // USD-denominated buys still round up so a min-size chip clears the book floor.
   // L1 min-notional uses mid (and the limit if it is lower), not the IOC cap.
   const ntlMid = wireOutcomePx(bookMid ?? mid ?? pxWire);
   const ntlPx = Math.min(pxWire, ntlMid || pxWire);

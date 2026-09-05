@@ -116,7 +116,8 @@ function ShellFrame() {
               onFocus={() => setSearchOpen(true)}
               onClick={() => setSearchOpen(true)}
               placeholder={hip4.markets.searchPlaceholder}
-              className="w-full cursor-text rounded-full border border-[var(--border)] bg-[var(--bg-2)] py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[var(--accent)] focus:bg-white"
+              aria-label={hip4.markets.searchPlaceholder}
+              className="w-full cursor-text rounded-full border border-[var(--border)] bg-[var(--bg-2)] py-2.5 pl-10 pr-4 text-sm outline-none transition placeholder:opacity-0 focus:border-[var(--accent)] focus:bg-white sm:placeholder:opacity-100"
             />
           </form>
 
@@ -223,7 +224,7 @@ function ShellFrame() {
                   type="button"
                   disabled={!ready && privyConfigured}
                   onClick={() => login()}
-                  className="btn-stamp btn-ghost-stamp inline-flex items-center px-3 py-2 text-sm sm:px-3.5"
+                  className="btn-stamp btn-ghost-stamp inline-flex items-center px-2 py-1.5 text-[12px] sm:px-3.5 sm:py-2 sm:text-sm"
                 >
                   {hip4.header.logIn}
                 </button>
@@ -231,7 +232,7 @@ function ShellFrame() {
                   type="button"
                   disabled={!ready && privyConfigured}
                   onClick={() => login()}
-                  className="btn-stamp btn-primary inline-flex items-center px-3 py-2 text-sm sm:px-3.5"
+                  className="btn-stamp btn-primary inline-flex items-center px-2 py-1.5 text-[12px] sm:px-3.5 sm:py-2 sm:text-sm"
                 >
                   {hip4.header.signUp}
                 </button>

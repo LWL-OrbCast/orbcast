@@ -168,8 +168,8 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   authBtns: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   logInBtn: {
-    height: 40,
-    paddingHorizontal: 12,
+    height: 34,
+    paddingHorizontal: 10,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: colors.text.primary,
@@ -179,12 +179,12 @@ const styles = StyleSheet.create({
   },
   logInLabel: {
     fontFamily: fonts.extraBold,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.text.primary,
   },
   signUpBtn: {
-    height: 40,
-    paddingHorizontal: 12,
+    height: 34,
+    paddingHorizontal: 10,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: colors.text.primary,
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   },
   signUpLabel: {
     fontFamily: fonts.extraBold,
-    fontSize: 13,
+    fontSize: 12,
     color: '#F5F7F6',
   },
   localePill: {

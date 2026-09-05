@@ -80,7 +80,7 @@ Nav is **Home / Markets / Positions / Rewards / Wallet**. Do not add News-as-sto
 
 ## Product UX (sports-first, protocol-generic)
 
-**Home / Markets:** Ending soon (closest settle), **Live** (UI word for open/unsettled books — code view `'open'`), **Upcoming** (kickoff still in the future). Do not label catalog chips “Open”. See AGENTS.md “Copy: Live vs open vs Upcoming”.
+**Home / Markets:** Ending soon (expire within 48h), **Live** (UI word for open/unsettled books — code view `'open'`), **Upcoming** (kickoff still in the future). Do not label catalog chips “Open”. See AGENTS.md “Copy: Live vs open vs Upcoming”.
 
 **Market ticket:** pick a side / outcome, size in USDC (or quote token), no leverage slider. Show merged-book intuition if useful (buy Yes at `p` ≈ sell No at `1-p`) without dumping CLOB jargon on a new user.
 

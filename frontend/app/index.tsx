@@ -99,7 +99,7 @@ export default function HomeScreen() {
     [rows, showAllEndingSoon],
   );
   const endingSoonHidden = Math.max(0, rows.length - ENDING_SOON_PREVIEW);
-  const emptyKind = catalogEmptyKind(chip, rows.length);
+  const emptyKind = catalogEmptyKind(chip, scoped.length);
 
   useEffect(() => {
     setShowAllEndingSoon(false);
@@ -246,19 +246,19 @@ export default function HomeScreen() {
                       ? t('hip4.home.noEconomics')
                       : emptyKind === 'sports'
                         ? t('hip4.home.noSports')
-                        : t('hip4.home.noLive')}
+                        : t('hip4.home.noEndingSoon')}
               </Text>
-              <Text style={styles.muted}>
-                {emptyKind === 'crypto'
-                  ? t('hip4.home.noCryptoHint')
-                  : emptyKind === 'stocks'
-                    ? t('hip4.home.noStocksHint')
-                    : emptyKind === 'economics'
-                      ? t('hip4.home.noEconomicsHint')
-                      : emptyKind === 'sports'
-                        ? t('hip4.home.noSportsHint')
-                        : t('hip4.home.noLiveHint')}
-              </Text>
+              {emptyKind ? (
+                <Text style={styles.muted}>
+                  {emptyKind === 'crypto'
+                    ? t('hip4.home.noCryptoHint')
+                    : emptyKind === 'stocks'
+                      ? t('hip4.home.noStocksHint')
+                      : emptyKind === 'economics'
+                        ? t('hip4.home.noEconomicsHint')
+                        : t('hip4.home.noSportsHint')}
+                </Text>
+              ) : null}
             </View>
           )
         }

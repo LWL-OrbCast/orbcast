@@ -23,6 +23,7 @@ import {
   applyCatalogView,
   applySearch,
   applySportChip,
+  catalogEmptyKind,
   type MarketCatalogView,
 } from '../src/lib/marketCatalog';
 import { HomeHeader } from '../src/components/sports/HomeHeader';
@@ -83,6 +84,7 @@ export default function MarketsScreen() {
     next = applySearch(next, queryText);
     return next;
   }, [all, view, chip, queryText]);
+  const emptyKind = catalogEmptyKind(chip, applySportChip(all, chip).length);
 
   const onPullRefresh = async () => {
     setPullRefreshing(true);
@@ -108,8 +110,8 @@ export default function MarketsScreen() {
         <TextInput
           value={queryText}
           onChangeText={setQueryText}
-          placeholder={t('hip4.markets.searchPlaceholder')}
-          placeholderTextColor={colors.text.muted}
+          placeholder=""
+          accessibilityLabel={t('hip4.markets.searchPlaceholder')}
           style={styles.searchInput}
           autoCorrect={false}
           autoCapitalize="none"
@@ -198,8 +200,36 @@ export default function MarketsScreen() {
             </View>
           ) : (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>{t('hip4.markets.noMatch')}</Text>
-              <Text style={styles.muted}>{t('hip4.markets.noMatchHint')}</Text>
+              <Text style={styles.emptyTitle}>
+                {queryText.trim()
+                  ? t('hip4.markets.noMatch')
+                  : emptyKind === 'crypto'
+                    ? t('hip4.home.noCrypto')
+                    : emptyKind === 'stocks'
+                      ? t('hip4.home.noStocks')
+                      : emptyKind === 'economics'
+                        ? t('hip4.home.noEconomics')
+                        : emptyKind === 'sports'
+                          ? t('hip4.home.noSports')
+                          : view === 'endingSoon'
+                            ? t('hip4.home.noEndingSoon')
+                            : t('hip4.markets.noMatch')}
+              </Text>
+              {queryText.trim() || emptyKind || view !== 'endingSoon' ? (
+                <Text style={styles.muted}>
+                  {queryText.trim()
+                    ? t('hip4.markets.noMatchHint')
+                    : emptyKind === 'crypto'
+                      ? t('hip4.home.noCryptoHint')
+                      : emptyKind === 'stocks'
+                        ? t('hip4.home.noStocksHint')
+                        : emptyKind === 'economics'
+                          ? t('hip4.home.noEconomicsHint')
+                          : emptyKind === 'sports'
+                            ? t('hip4.home.noSportsHint')
+                            : t('hip4.markets.noMatchHint')}
+                </Text>
+              ) : null}
             </View>
           )
         }

@@ -1419,7 +1419,7 @@ export default function MarketScreen() {
               ) : (
                 <Text style={[styles.est, { marginTop: 10 }]}>
                   {ticketAction === 'sell' && canSell && heldValue + 1e-9 < MIN_OUTCOME_NOTIONAL_USD
-                    ? t('hip4.ticket.leftoverUnderMin')
+                    ? t('hip4.ticket.leftoverUnderMin', { min: MIN_OUTCOME_NOTIONAL_USD })
                     : t('hip4.ticket.minSize', { min: MIN_OUTCOME_NOTIONAL_USD })}
                 </Text>
               )}

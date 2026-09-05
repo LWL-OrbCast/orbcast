@@ -446,7 +446,15 @@ export function MarketsPage() {
     <div>
       <h1 className="mb-4 text-2xl font-extrabold">{hip4.header.markets}</h1>
       <CatalogFilters view={view} setView={setView} count={rows.length} />
-      <CatalogBody query={q} rows={rows} chip={search.trim() ? undefined : sport} />
+      <CatalogBody
+        query={q}
+        rows={rows}
+        chip={
+          search.trim() || applySportChip(q.data ?? [], sport).length > 0 ? undefined : sport
+        }
+        view={view}
+        searching={Boolean(search.trim())}
+      />
     </div>
   );
 }
@@ -456,11 +464,15 @@ function CatalogBody({
   rows,
   chip,
   emptyLive,
+  view,
+  searching,
 }: {
   query: ReturnType<typeof useCatalog>;
   rows: ListedMarket[];
   chip?: SportChipId;
   emptyLive?: boolean;
+  view?: MarketCatalogView;
+  searching?: boolean;
 }) {
   const { hip4 } = useCopy();
   if (query.isLoading && !query.data) {
@@ -482,7 +494,8 @@ function CatalogBody({
     );
   }
   if (!rows.length) {
-    const kind = chip ? catalogEmptyKind(chip, 0) : null;
+    const kind = !searching && chip ? catalogEmptyKind(chip, 0) : null;
+    const endingSoonEmpty = !searching && view === 'endingSoon';
     const title =
       kind === 'crypto'
         ? hip4.home.noCrypto
@@ -494,7 +507,9 @@ function CatalogBody({
               ? hip4.home.noSports
               : emptyLive
                 ? hip4.home.noLive
-                : hip4.markets.noMatch;
+                : endingSoonEmpty
+                  ? hip4.home.noEndingSoon
+                  : hip4.markets.noMatch;
     const hint =
       kind === 'crypto'
         ? hip4.home.noCryptoHint
@@ -506,11 +521,13 @@ function CatalogBody({
               ? hip4.home.noSportsHint
               : emptyLive
                 ? hip4.home.noLiveHint
-                : hip4.markets.noMatchHint;
+                : endingSoonEmpty
+                  ? null
+                  : hip4.markets.noMatchHint;
     return (
       <div className="rounded-2xl border border-[var(--border)] bg-white p-8 text-center">
         <p className="font-extrabold">{title}</p>
-        <p className="mt-1 text-sm text-[var(--text-2)]">{hint}</p>
+        {hint ? <p className="mt-1 text-sm text-[var(--text-2)]">{hint}</p> : null}
       </div>
     );
   }

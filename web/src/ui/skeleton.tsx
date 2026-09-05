@@ -282,8 +282,8 @@ export function HomeLiveSkeleton() {
 export function AuthButtonSkeleton() {
   return (
     <div className="flex shrink-0 items-center gap-2" aria-hidden>
-      <div className="skel h-10 w-[4.5rem] rounded-xl sm:w-[5.25rem]" />
-      <div className="skel h-10 w-[4.75rem] rounded-xl sm:w-[5.5rem]" />
+      <div className="skel h-8 w-14 rounded-xl sm:h-10 sm:w-[5.25rem]" />
+      <div className="skel h-8 w-[3.75rem] rounded-xl sm:h-10 sm:w-[5.5rem]" />
     </div>
   );
 }

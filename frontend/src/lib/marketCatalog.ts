@@ -27,6 +27,9 @@ export {
 /** One min-size fill. Below this, a book is quiet and sorts after active ones. */
 export const CATALOG_VOLUME_FLOOR_USD = MIN_OUTCOME_NOTIONAL_USD;
 
+/** Catalog chip “Ending soon”: expire within this window (or already past expiry). */
+export const ENDING_SOON_WINDOW_MS = 48 * 60 * 60 * 1000;
+
 /** 0 = show normally. 1 = visibility penalty (low tape / liquidity). */
 export function catalogVisibilityPenalty(market: ListedMarket): number {
   return (market.volumeUsd ?? 0) + 1e-9 >= CATALOG_VOLUME_FLOOR_USD ? 0 : 1;
@@ -165,6 +168,12 @@ export function openMarkets(markets: ListedMarket[]): ListedMarket[] {
   return markets.filter((m) => m.status !== 'settled');
 }
 
+/** Unsettled book with a known expiry at or before `now + 48h`. */
+export function isEndingSoonMarket(m: ListedMarket, now = Date.now()): boolean {
+  if (m.status === 'settled' || m.expiresAt == null) return false;
+  return m.expiresAt <= now + ENDING_SOON_WINDOW_MS;
+}
+
 /**
  * Quiet books sort after books with real tape. Then closest settle.
  * Unknown expiry last. Volume breaks remaining ties.
@@ -193,7 +202,7 @@ export function applyCatalogView(
     return markets.filter((m) => m.status === 'upcoming');
   }
   const open = openMarkets(markets);
-  if (view === 'endingSoon') return sortEndingSoon(open);
+  if (view === 'endingSoon') return sortEndingSoon(open.filter((m) => isEndingSoonMarket(m)));
   return sortByCatalogVisibility(open);
 }
 
@@ -231,7 +240,7 @@ export function isTimestampOnLocalDay(ms: number | null | undefined, now = Date.
 }
 
 /** Contest length vs season-long books (`startsAt` null + expiry next year). */
-const TODAY_CONTEST_SPAN_MS = 48 * 60 * 60 * 1000;
+const TODAY_CONTEST_SPAN_MS = ENDING_SOON_WINDOW_MS;
 
 /**
  * Featured “today” = kickoff today, settles today, or a short in-play contest
@@ -300,7 +309,7 @@ const DAY_MS = 24 * HOUR_MS;
 export function featuredUrgencyRank(m: ListedMarket, now = Date.now()): number {
   const expLeft = m.expiresAt != null ? m.expiresAt - now : Number.POSITIVE_INFINITY;
   const startLeft = m.startsAt != null ? m.startsAt - now : Number.POSITIVE_INFINITY;
-  if (expLeft > 0 && expLeft <= 48 * HOUR_MS) return 0;
+  if (expLeft > 0 && expLeft <= ENDING_SOON_WINDOW_MS) return 0;
   if (startLeft > 0 && startLeft <= 7 * DAY_MS) return 1;
   if (m.status === 'live') return 2;
   if (m.status === 'upcoming') return 3;

@@ -27,7 +27,7 @@ UI says **Live**. Code / HIP-4 status say **open**. That is a display choice, no
 |-----------|------|
 | **Live** (catalog chip) | `MarketCatalogView` `'open'` — every unsettled book (`status !== 'settled'`) |
 | **Upcoming** | `status === 'upcoming'` — sports (or any market) whose kickoff/`startsAt` is still in the future |
-| **Ending soon** | same open books, sorted by `expiresAt` ascending |
+| **Ending soon** | unsettled books that expire within 48 hours (or already past expiry), sorted by `expiresAt` ascending |
 | Row/ticket **Live** | `ListedMarket.status === 'live'` — book is in play (started, or no start time) |
 
 Do not rename the catalog view to `'live'`. That string already means in-play on `ListedMarket.status`. Do not show **Open** on catalog chips.

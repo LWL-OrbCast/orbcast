@@ -7,7 +7,7 @@ import {
   type ListedMarket,
 } from '../../lib/hip4';
 import { footballChromeFixture, type FootballFixture } from '../../lib/sportsFootball';
-import { isFootballContestMarket } from '../../lib/marketCatalog';
+import { isFinishedFootballContest, isFootballContestMarket } from '../../lib/marketCatalog';
 import { FootballFeaturedCard } from './FeaturedMatchCard';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/fonts';
@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 type Props = {
   markets: ListedMarket[];
   catalog: ListedMarket[];
-  fixtures?: FootballFixture[];
+  fixtures?: FootballFixture[] | null;
   onPressQuestion: (market: ListedMarket) => void;
   onPressLeg: (market: ListedMarket) => void;
 };
@@ -26,15 +26,15 @@ type Props = {
 export function FeaturedEventSlider({
   markets,
   catalog,
-  fixtures = [],
+  fixtures = null,
   onPressQuestion,
   onPressLeg,
 }: Props) {
-  const market = markets[0];
+  const market = markets.find((m) => !isFinishedFootballContest(m, fixtures)) ?? null;
   if (!market) return null;
 
-  const football = footballChromeFixture(fixtures, market);
-  if (isFootballContestMarket(market) && football) {
+  const football = footballChromeFixture(fixtures ?? [], market);
+  if (isFootballContestMarket(market) && football && !football.finished) {
     return (
       <FootballFeaturedCard
         fixture={football}

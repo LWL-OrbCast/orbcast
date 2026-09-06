@@ -1,11 +1,17 @@
 import { API_BASE } from './config';
 import { isTimestampOnLocalDay } from '@hip4/catalog';
-import type { FootballBoard, FootballFixture } from '../../../frontend/src/lib/footballChrome';
+import { rememberFootballBoard } from '../../../frontend/src/lib/footballBoardState';
+import {
+  boardFixtures,
+  type FootballBoard,
+  type FootballFixture,
+} from '../../../frontend/src/lib/footballChrome';
 
 export type { FootballBoard, FootballFixture } from '../../../frontend/src/lib/footballChrome';
 export {
   boardFixtures,
   boardHasLiveFixture,
+  catalogFootballFixtures,
   footballChromeFixture,
 } from '../../../frontend/src/lib/footballChrome';
 
@@ -52,8 +58,10 @@ export function fetchHealth() {
 export type EplBoard = FootballBoard;
 export type EplFixture = FootballFixture;
 
-export function fetchEplBoard() {
-  return api<EplBoard>('/sports/football/epl');
+export async function fetchEplBoard() {
+  const data = await api<EplBoard>('/sports/football/epl');
+  rememberFootballBoard(boardFixtures(data));
+  return data;
 }
 
 export function isTodaysEplFixture(fixture: EplFixture, now = Date.now()): boolean {

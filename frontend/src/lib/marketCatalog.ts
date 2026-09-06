@@ -12,6 +12,7 @@ import {
   type SportChipId,
   type SportOnlyChipId,
 } from './sportsCatalog';
+import { rememberedFinishedFootball } from './footballBoardState';
 
 export {
   API_SPORTS_PRODUCTS,
@@ -173,7 +174,16 @@ function teamKeys(name: string): string[] {
     keys.add('barcelona');
     keys.add('fcbarcelona');
   }
-  if (/tottenham/.test(s)) keys.add('tottenhamhotspur');
+  if (/tottenham|^spurs$/.test(s)) {
+    keys.add('tottenham');
+    keys.add('tottenhamhotspur');
+    keys.add('spurs');
+  }
+  if (/wolverhampton|^wolves$/.test(s)) {
+    keys.add('wolves');
+    keys.add('wolverhampton');
+    keys.add('wolverhamptonwanderers');
+  }
   if (/parisaintgermain|psg/.test(s)) {
     keys.add('parissaintgermain');
     keys.add('psg');
@@ -191,13 +201,61 @@ function teamKeys(name: string): string[] {
     keys.add('athleticclub');
     keys.add('athleticbilbao');
   }
+  if (s === 'roma' || s === 'asroma') {
+    keys.add('roma');
+    keys.add('asroma');
+  }
+  if (/juventus|^juve$/.test(s)) keys.add('juventus');
+  if (/bodoglimt|bodoeglimt/.test(s)) {
+    keys.add('bodoglimt');
+    keys.add('fkbodoglimt');
+  }
+  if (/slavia/.test(s)) {
+    keys.add('slaviapraha');
+    keys.add('slaviaprague');
+    keys.add('skslaviapraha');
+  }
+  if (/shakhtar/.test(s)) {
+    keys.add('shakhtar');
+    keys.add('shakhtardonetsk');
+  }
+  if (/^lens$|^rclens$/.test(s)) {
+    keys.add('lens');
+    keys.add('rclens');
+  }
+  if (/clubbrugge|clubbruges/.test(s)) {
+    keys.add('clubbrugge');
+    keys.add('clubbruges');
+  }
+  if (/stuttgart/.test(s)) {
+    keys.add('stuttgart');
+    keys.add('vfbstuttgart');
+  }
+  if (/fenerbahce/.test(s)) keys.add('fenerbahce');
+  if (/bayern/.test(s)) {
+    keys.add('bayern');
+    keys.add('bayernmunich');
+    keys.add('fcbayernmunich');
+  }
   return [...keys].filter(Boolean);
 }
 
-function teamsMatch(a: string, b: string): boolean {
+export function teamMatchScore(a: string, b: string): number {
+  if (!a.trim() || !b.trim()) return 0;
   const A = teamKeys(a);
   const B = teamKeys(b);
-  return A.some((x) => B.some((y) => x === y || x.includes(y) || y.includes(x)));
+  let best = 0;
+  for (const x of A) {
+    for (const y of B) {
+      if (x === y) best = Math.max(best, 1000 + x.length);
+      else if (x.includes(y) || y.includes(x)) best = Math.max(best, Math.min(x.length, y.length));
+    }
+  }
+  return best;
+}
+
+export function teamsMatch(a: string, b: string): boolean {
+  return teamMatchScore(a, b) > 0;
 }
 
 export function contestParticipants(m: ListedMarket): [string, string] | null {
@@ -240,6 +298,44 @@ export function fixtureForMarket<T extends { home: { name: string }; away: { nam
     if (marketMatchesFixture(m, f.home.name, f.away.name)) return f;
   }
   return null;
+}
+
+type CatalogFixture = {
+  home: { name: string };
+  away: { name: string };
+  finished?: boolean;
+};
+
+/**
+ * API-Sports FT / AET / PEN (etc.) — not HIP-4 `settled`.
+ * The venue may still leave the book clickable until validators settle.
+ *
+ * `fixtures == null` means the overlay has not loaded (or is off). An empty
+ * array means the board loaded and this contest is not live/upcoming.
+ */
+export function isFinishedFootballContest(
+  m: ListedMarket,
+  fixtures?: CatalogFixture[] | null,
+): boolean {
+  if (!isFootballContestMarket(m)) return false;
+  const finished = (fixtures ?? [])
+    .filter((f) => f.finished)
+    .map((f) => ({ home: f.home.name, away: f.away.name }));
+  const seen = new Set(finished.map((f) => `${f.home}\0${f.away}`));
+  for (const f of rememberedFinishedFootball()) {
+    const k = `${f.home}\0${f.away}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    finished.push(f);
+  }
+  if (finished.some((f) => marketMatchesFixture(m, f.home, f.away))) return true;
+
+  if (fixtures == null) return false;
+  const stillOn = fixtures.some(
+    (f) => !f.finished && marketMatchesFixture(m, f.home.name, f.away.name),
+  );
+  if (stillOn) return false;
+  return m.startsAt != null && m.startsAt <= Date.now();
 }
 
 /** HIP-4 contest whose two sides are this fixture (order-independent). */
@@ -519,10 +615,13 @@ export function catalogQuestionLeads(
   pool: ListedMarket[],
   catalog: ListedMarket[],
   heldOutcomeIds?: Iterable<number> | null,
+  fixtures?: CatalogFixture[] | null,
 ): ListedMarket[] {
   const held = asHeldSet(heldOutcomeIds);
   const leads = uniqueQuestionLeads(pool, catalog, held);
-  return pickPreferredVenueLeads(leads, catalog, held);
+  return pickPreferredVenueLeads(leads, catalog, held).filter(
+    (m) => !isFinishedFootballContest(m, fixtures),
+  );
 }
 
 /** Live / Upcoming / Ending soon rows: one card per question, venue-aware. */
@@ -532,11 +631,12 @@ export function catalogListRows(
   chip: SportChipId,
   query = '',
   heldOutcomeIds?: Iterable<number> | null,
+  fixtures?: CatalogFixture[] | null,
 ): ListedMarket[] {
   const scoped = applySportChip(all, chip);
   const viewed = applyCatalogView(scoped, view);
   const pool = query.trim() ? expandSearchHits(viewed, query) : viewed;
-  const leads = catalogQuestionLeads(pool, all, heldOutcomeIds);
+  const leads = catalogQuestionLeads(pool, all, heldOutcomeIds, fixtures);
   if (view === 'endingSoon') {
     return [...leads].sort((a, b) => {
       const vis =
@@ -559,10 +659,11 @@ export function searchCatalogRows(
   all: ListedMarket[],
   query: string,
   heldOutcomeIds?: Iterable<number> | null,
+  fixtures?: CatalogFixture[] | null,
 ): ListedMarket[] {
   const open = openMarkets(all);
   const pool = query.trim() ? expandSearchHits(open, query) : open;
-  return catalogQuestionLeads(pool, all, heldOutcomeIds);
+  return catalogQuestionLeads(pool, all, heldOutcomeIds, fixtures);
 }
 
 function catalogVisibilityPenaltyForLead(catalog: ListedMarket[], m: ListedMarket): number {
@@ -579,9 +680,10 @@ export function trendingCatalogMarkets(
   chip: SportChipId,
   limit: number,
   heldOutcomeIds?: Iterable<number> | null,
+  fixtures?: CatalogFixture[] | null,
 ): ListedMarket[] {
   const scoped = openMarkets(applySportChip(markets, chip));
-  const leads = catalogQuestionLeads(scoped, markets, heldOutcomeIds);
+  const leads = catalogQuestionLeads(scoped, markets, heldOutcomeIds, fixtures);
   return [...leads]
     .sort((a, b) => questionVolumeUsd(markets, b) - questionVolumeUsd(markets, a))
     .slice(0, limit);
@@ -677,9 +779,13 @@ export function featuredUrgencyRank(m: ListedMarket, now = Date.now()): number {
   const expLeft = m.expiresAt != null ? m.expiresAt - now : Number.POSITIVE_INFINITY;
   const startLeft = m.startsAt != null ? m.startsAt - now : Number.POSITIVE_INFINITY;
   const notExpired = m.expiresAt == null || m.expiresAt > now;
-  // Same-day / next-kickoff contests beat 48h tape so United–Everton is not
-  // dropped from All for a 5-minute crypto binary.
-  if (m.startsAt != null && notExpired && startLeft <= 36 * HOUR_MS && startLeft > -8 * HOUR_MS) {
+  // Upcoming / in-play contests beat 48h tape so a same-day kickoff is not
+  // dropped from All for a 5-minute crypto binary. Do not keep boosting a
+  // contest after the match window — FT books were starring on All.
+  if (m.startsAt != null && notExpired && startLeft <= 36 * HOUR_MS && startLeft > 0) {
+    return 0;
+  }
+  if (m.startsAt != null && notExpired && startLeft <= 0 && startLeft > -2.5 * HOUR_MS) {
     return 0;
   }
   if (expLeft > 0 && expLeft <= ENDING_SOON_WINDOW_MS) return 1;
@@ -752,12 +858,14 @@ export function featuredCatalogMarkets(
   chip: SportChipId,
   limit = 5,
   heldOutcomeIds?: Iterable<number> | null,
+  fixtures?: CatalogFixture[] | null,
 ): ListedMarket[] {
   const now = Date.now();
   const leads = catalogQuestionLeads(
     openMarkets(applySportChip(markets, chip)),
     markets,
     heldOutcomeIds,
+    fixtures,
   );
   if (chip === 'all') return mixFeaturedByChip(leads, markets, limit, now);
   return [...leads].sort(compareFeaturedLead(markets, now)).slice(0, limit);

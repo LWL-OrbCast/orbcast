@@ -27,6 +27,7 @@ import {
   questionTicketMarket,
 } from '../../lib/hip4';
 import { searchCatalogRows, trendingCatalogMarkets } from '../../lib/marketCatalog';
+import { boardHasLiveFixture, catalogFootballFixtures, fetchEplBoard } from '../../lib/sportsFootball';
 import { useHyperliquidSpotState } from '../../lib/useHyperliquidAccountStream';
 import { pushRouteOnce } from '../../lib/pushRouteOnce';
 import { MarketSymbol } from './MarketSymbol';
@@ -51,6 +52,15 @@ export function CatalogSearchModal({ visible, onClose }: Props) {
     enabled: visible,
   });
   const all = catalog.data ?? [];
+  const eplQuery = useQuery({
+    queryKey: ['sports', 'football', 'epl'],
+    queryFn: fetchEplBoard,
+    staleTime: 45_000,
+    refetchInterval: (q) => (boardHasLiveFixture(q.state.data) ? 45_000 : 90_000),
+    retry: 1,
+    enabled: visible,
+  });
+  const fixtures = useMemo(() => catalogFootballFixtures(eplQuery.data), [eplQuery.data]);
   const spot = useHyperliquidSpotState();
   const heldOutcomeIds = useMemo(
     () => heldOutcomeIdsFromBalances(spot?.balances),
@@ -59,15 +69,15 @@ export function CatalogSearchModal({ visible, onClose }: Props) {
 
   const rows = useMemo(() => {
     const needle = query.trim();
-    if (!needle) return trendingCatalogMarkets(all, 'all', PREVIEW, heldOutcomeIds);
-    return searchCatalogRows(all, needle, heldOutcomeIds).slice(0, PREVIEW);
-  }, [all, query, heldOutcomeIds]);
+    if (!needle) return trendingCatalogMarkets(all, 'all', PREVIEW, heldOutcomeIds, fixtures);
+    return searchCatalogRows(all, needle, heldOutcomeIds, fixtures).slice(0, PREVIEW);
+  }, [all, query, heldOutcomeIds, fixtures]);
 
   const totalMatch = useMemo(() => {
     const needle = query.trim();
     if (!needle) return all.length;
-    return searchCatalogRows(all, needle, heldOutcomeIds).length;
-  }, [all, query, heldOutcomeIds]);
+    return searchCatalogRows(all, needle, heldOutcomeIds, fixtures).length;
+  }, [all, query, heldOutcomeIds, fixtures]);
 
   useEffect(() => {
     if (!visible) {

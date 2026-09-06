@@ -59,7 +59,7 @@ Do not rename the catalog view to `'live'`. That string already means in-play on
 | Agent / builder / withdraw | `frontend/src/lib/hlKernel.ts` (then stop using raw `hyperliquid.ts`) |
 | Sports home / ticket / positions | `frontend/app/index.tsx`, `market/[id].tsx`, `portfolio.tsx` |
 | Vite desktop web | `web/` (DOM UI). Share `hip4.ts` via aliases. Do **not** import Expo screens, `hyperliquid.ts`, or `@privy-io/expo`. |
-| Football match chrome | `backend/sports_football.py`, `frontend/src/lib/sportsFootball.ts`, `frontend/src/lib/footballChrome.ts`, `FeaturedMatchCard.tsx` |
+| Football match chrome | `backend/sports_football.py`, `frontend/src/lib/sportsFootball.ts`, `frontend/src/lib/footballChrome.ts`, `frontend/src/lib/footballTeamLogos.ts`, `FeaturedMatchCard.tsx` |
 | Catalog sport chips / API-Sports hosts | `frontend/src/lib/sportsCatalog.ts`, `backend/sports_api.py` |
 | Catalog row images | `frontend/src/lib/marketSymbol.ts` + files in `frontend/assets/images/symbols/` (`lol-icon.webp` → LoL). Category chips stay vector glyphs. Do not fetch API-Sports art for catalog thumbs. |
 | Backend (wallet, rewards, push) | `backend/server.py` |
@@ -112,7 +112,7 @@ Large single module. Jump by route prefix (`/api/health`, `/api/sports/football/
 7. **DB** — follow [DATABASE.md](./docs/DATABASE.md). Do not invent tables that fight deny-all RLS.
 8. **Relayer** — new EOAs for this app. Do not reuse another product’s relayer keys (nonce wars).
 9. **Trust live `outcomeMeta`** — do not hardcode docs deployer addresses. `settleQuestion` was replaced by `settleQuestion2`.
-10. **Sports chrome ≠ the book** — API-Sports is fixtures/score only (EPL / La Liga / Serie A). Soccer and NFL are different products (`sportsCatalog.ts` / `sports_api.py`). Do not show their odds next to HIP-4 mids. Key is `API_SPORTS_KEY` on the server; never Expo. See [SPORTS.md](./docs/SPORTS.md).
+10. **Sports chrome ≠ the book** — API-Sports is fixtures/score only (EPL / La Liga / Serie A). Soccer and NFL are different products (`sportsCatalog.ts` / `sports_api.py`). Do not show their odds next to HIP-4 mids. Key is `API_SPORTS_KEY` on the server; never Expo. Overlay `finished` (`FT` etc.) hides contest books from discovery lists; it is **not** HIP-4 settlement. See [SPORTS.md](./docs/SPORTS.md).
 
 ---
 

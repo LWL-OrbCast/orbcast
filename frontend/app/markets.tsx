@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -32,6 +32,7 @@ import {
   type MarketCatalogView,
 } from '../src/lib/marketCatalog';
 import { useHyperliquidSpotState } from '../src/lib/useHyperliquidAccountStream';
+import { boardHasLiveFixture, catalogFootballFixtures, fetchEplBoard } from '../src/lib/sportsFootball';
 import { HomeHeader } from '../src/components/sports/HomeHeader';
 import { SportCategoryRow, type SportChipId } from '../src/components/sports/SportCategoryRow';
 import { PredictionRow } from '../src/components/sports/PredictionRow';
@@ -56,6 +57,7 @@ export default function MarketsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string | string[]; view?: string | string[] }>();
   const focused = useIsFocused();
+  const queryClient = useQueryClient();
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const spot = useHyperliquidSpotState();
   const heldOutcomeIds = useMemo(
@@ -88,17 +90,29 @@ export default function MarketsScreen() {
   });
 
   const all = catalogQuery.data ?? [];
+  const eplQuery = useQuery({
+    queryKey: ['sports', 'football', 'epl'],
+    queryFn: fetchEplBoard,
+    staleTime: 45_000,
+    refetchInterval: (q) => (boardHasLiveFixture(q.state.data) ? 45_000 : 90_000),
+    retry: 1,
+    enabled: focused,
+  });
+  const fixtures = useMemo(() => catalogFootballFixtures(eplQuery.data), [eplQuery.data]);
 
   const rows = useMemo(
-    () => catalogListRows(all, view, chip, queryText, heldOutcomeIds),
-    [all, view, chip, queryText, heldOutcomeIds],
+    () => catalogListRows(all, view, chip, queryText, heldOutcomeIds, fixtures),
+    [all, view, chip, queryText, heldOutcomeIds, fixtures],
   );
   const emptyKind = catalogEmptyKind(chip, applySportChip(all, chip).length);
 
   const onPullRefresh = async () => {
     setPullRefreshing(true);
     try {
-      await catalogQuery.refetch();
+      await Promise.all([
+        catalogQuery.refetch(),
+        queryClient.invalidateQueries({ queryKey: ['sports', 'football', 'epl'] }),
+      ]);
     } finally {
       setPullRefreshing(false);
     }

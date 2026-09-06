@@ -42,7 +42,7 @@ Football contest slides (`FeaturedMatchCard` / web `EplFeatured`) use stadium ch
 |-------|----|
 | Football contest, fixture on the board | Crests, score, minute / HT / FT |
 | Football contest, upcoming | Same chrome with countdown |
-| Football contest, no API row | Stadium + HIP-4 names / `startsAt` (no crests) |
+| Football contest, no API row | Stadium + HIP-4 names / `startsAt`; crests from the static team-id map (`media.api-sports.io`, no quota) |
 | Key missing (Expo Football chip, empty) | UEFA stub (Madrid / City art) |
 | Key set, no fixture and no books | “No upcoming football match” |
 | All chip | Mix slider; football **matches** still get stadium chrome |
@@ -74,11 +74,14 @@ This app’s cache-miss spend (phones hit our backend only; logos on `media.api-
 |--------|----------|
 | Always | `GET /fixtures?live=39-140-135` (hyphenated ids — a lone `live=39` is rejected) |
 | Upcoming | `GET /fixtures?league={39\|140\|135}&season=…&next=10` (Pro, 3 calls, 180s TTL). If a league’s `next=` is empty, that league only: `date=today` |
+| Finished | `GET /fixtures?league={39\|140\|135}&season=…&last=10` (3 calls, 180s TTL). FT games drop off `live=` immediately — this is how the catalog knows to hide them |
 | Live featured | `GET /fixtures/events?fixture=…` for the featured live game only |
 
-Do **not** call `live=all` (whole-world live list). TTL is ~90s for the board / live / events, ~180s for upcoming. The composed board is shared in Supabase `news_cache` (`sports:football:board`) so every replica reads the same payload.
+Do **not** call `live=all` (whole-world live list). TTL is ~90s for the board / live / events, ~180s for upcoming and finished. The composed board is shared in Supabase `news_cache` (`sports:football:board`) so every replica reads the same payload.
 
-Quiet day upper bound (one replica, cache working): ~1 live check / 90s ≈ 960/day, plus 3 upcoming refreshes every 180s ≈ 1.4k/day → **~2.4k**. Live featured: live + events every 90s ≈ **~2.8k**. Pro is 7,500/day / 300/min.
+Quiet day upper bound (one replica, cache working): ~1 live check / 90s ≈ 960/day, plus 3 upcoming + 3 finished refreshes every 180s ≈ 2.9k/day → **~3.8k**. Live featured: live + events every 90s ≈ **~4.8k**. Pro is 7,500/day / 300/min.
+
+**API-Sports `finished` is not HIP-4 `settled`.** `status.short` `FT` / `AET` / `PEN` / `AWD` / `WO` means the match is over. The Outcome / Hyperliquid book stays `open` until the venue calls `settleQuestion2` (event markets, validator vote — Outcome targets resolution within ~4 hours, and the contest template fixes the official result one hour after full-time). Home, Markets, search, featured, and trending hide football **contest** books that match a finished overlay fixture, **or** whose kickoff is already in the past and the overlay no longer lists them as live/upcoming (so All does not keep starring a FT book). Positions and a direct `/market/:id` stay reachable. We do not invent settlement.
 
 **Pro (7,500/day)** unlocks `next=` / current season. Keep the overlay this tight — do not add more leagues without checking headroom. They stop you at the cap; they do not overbill. See [pricing](https://www.api-football.com/pricing) and [how ratelimit works](https://www.api-football.com/news/post/how-ratelimit-works).
 
@@ -97,6 +100,7 @@ Do **not** add a dedicated sports table. Later overlays can reuse other `news_ca
 | `frontend/src/lib/sportsCatalog.ts` | Chip ids, HIP-4 `sport` → chip, API-Sports hosts |
 | `frontend/src/lib/sportsFootball.ts` | Types + `fetchEplBoard()` via existing `api` axios |
 | `frontend/src/lib/footballChrome.ts` | Board `matches` + HIP-4 synthetic fixture (Vite-safe) |
+| `frontend/src/lib/footballTeamLogos.ts` | Name → API-Sports team id for synthetic crests |
 | `frontend/src/components/sports/FeaturedMatchCard.tsx` | Mobile stadium banner |
 | `frontend/app/index.tsx` | Pull-to-refresh invalidates `['sports', 'football', 'epl']` |
 | `web/src/ui/EplFeatured.tsx` | Desktop stadium banner for football contest slides |

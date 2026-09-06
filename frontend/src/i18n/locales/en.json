@@ -836,6 +836,8 @@
       "sharesAt": " {{name}} shares · ",
       "capHint": "Sells all {{held}} {{name}} you hold{{value}}. Does not buy No.",
       "settled": "Market settled",
+      "matchFinished": "Match finished",
+      "matchFinishedHint": "The book stays open until the venue settles.",
       "closeAll": "Close all {{name}}",
       "sellName": "Sell {{name}}",
       "buyName": "Buy {{name}}",

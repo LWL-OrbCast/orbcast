@@ -9,6 +9,7 @@ import {
   fixtureForMarket,
   isFootballContestMarket,
 } from './marketCatalog';
+import { withFootballFixtureCrests, withFootballTeamCrest } from './footballTeamLogos';
 
 export type FootballTeam = {
   id: number | null;
@@ -108,6 +109,12 @@ export function boardFixtures(board?: FootballBoard | null): FootballFixture[] {
   return out;
 }
 
+/** `null` until a configured overlay arrives — do not treat that as “no fixtures”. */
+export function catalogFootballFixtures(board?: FootballBoard | null): FootballFixture[] | null {
+  if (!board?.configured) return null;
+  return boardFixtures(board);
+}
+
 export function boardHasLiveFixture(board?: FootballBoard | null): boolean {
   return boardFixtures(board).some((f) => f.live);
 }
@@ -128,8 +135,8 @@ export function syntheticFootballFixture(m: ListedMarket): FootballFixture | nul
     elapsed: null,
     live,
     finished,
-    home: { id: null, name: a, logo: '' },
-    away: { id: null, name: b, logo: '' },
+    home: withFootballTeamCrest({ id: null, name: a, logo: '' }),
+    away: withFootballTeamCrest({ id: null, name: b, logo: '' }),
     goals: { home: null, away: null },
     league: { ...league, round: '' },
     venue: '',
@@ -142,5 +149,6 @@ export function footballChromeFixture(
   m: ListedMarket,
 ): FootballFixture | null {
   if (!isFootballContestMarket(m)) return null;
-  return fixtureForMarket(fixtures, m) ?? syntheticFootballFixture(m);
+  const fx = fixtureForMarket(fixtures, m) ?? syntheticFootballFixture(m);
+  return fx ? withFootballFixtureCrests(fx) : null;
 }

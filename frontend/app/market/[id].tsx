@@ -75,6 +75,8 @@ import { useHyperliquidSpotState } from '../../src/lib/useHyperliquidAccountStre
 import { pushRouteOnce, navigateRouteOnce } from '../../src/lib/pushRouteOnce';
 import { useTranslation } from 'react-i18next';
 import { useBuilderConfig } from '../../src/providers/BuilderConfigProvider';
+import { isFinishedFootballContest } from '../../src/lib/marketCatalog';
+import { boardHasLiveFixture, catalogFootballFixtures, fetchEplBoard } from '../../src/lib/sportsFootball';
 
 const QUICK = [10, 25, 50, 100];
 
@@ -200,6 +202,15 @@ export default function MarketScreen() {
   });
 
   const catalog = catalogQuery.data ?? [];
+  const eplQuery = useQuery({
+    queryKey: ['sports', 'football', 'epl'],
+    queryFn: fetchEplBoard,
+    staleTime: 45_000,
+    refetchInterval: (q) => (boardHasLiveFixture(q.state.data) ? 45_000 : 90_000),
+    retry: 1,
+    enabled: focused,
+  });
+  const fixtures = useMemo(() => catalogFootballFixtures(eplQuery.data), [eplQuery.data]);
   const market = useMemo(() => {
     if (id === 'demo') return catalog[0] ?? null;
     return catalog.find((m) => m.id === String(id) || String(m.outcomeId) === String(id)) ?? null;
@@ -207,6 +218,11 @@ export default function MarketScreen() {
 
   const siblings = useMemo(() => (market ? questionSiblings(catalog, market) : []), [catalog, market]);
   const multiLeg = siblings.length > 1;
+  const matchFinished = !!(
+    market &&
+    market.status !== 'settled' &&
+    isFinishedFootballContest(market, fixtures)
+  );
 
   const streamLegs: StreamLeg[] = useMemo(() => {
     if (!market) return [];
@@ -884,11 +900,13 @@ export default function MarketScreen() {
             <>
               <MarketCountdown
                 statusLabel={
-                  market.status === 'live'
-                    ? t('hip4.status.live')
-                    : market.status === 'upcoming'
-                      ? t('hip4.status.upcoming')
-                      : t('hip4.status.settled')
+                  market.status === 'settled'
+                    ? t('hip4.status.settled')
+                    : matchFinished
+                      ? t('hip4.featured.ft')
+                      : market.status === 'upcoming'
+                        ? t('hip4.status.upcoming')
+                        : t('hip4.status.live')
                 }
                 startsAt={market.startsAt}
                 expiresAt={market.expiresAt}
@@ -898,6 +916,12 @@ export default function MarketScreen() {
                 <Text style={styles.title}>{heading}</Text>
               </View>
               {subtitle ? <Text style={styles.sub}>{subtitle}</Text> : null}
+              {matchFinished ? (
+                <View style={styles.ftNote}>
+                  <Text style={styles.ftNoteTitle}>{t('hip4.ticket.matchFinished')}</Text>
+                  <Text style={styles.ftNoteHint}>{t('hip4.ticket.matchFinishedHint')}</Text>
+                </View>
+              ) : null}
 
               <View style={styles.hero}>
                 <View style={styles.heroTop}>
@@ -1621,6 +1645,26 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 },
   title: { flex: 1, color: colors.text.primary, fontSize: 26, fontWeight: '800', lineHeight: 32 },
   sub: { color: colors.text.secondary, fontSize: 14, marginTop: 6 },
+  ftNote: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border.primary,
+    backgroundColor: colors.background.card,
+  },
+  ftNoteTitle: {
+    color: colors.text.primary,
+    fontSize: 13,
+    fontFamily: fonts.bold,
+  },
+  ftNoteHint: {
+    color: colors.text.secondary,
+    fontSize: 13,
+    fontFamily: fonts.semibold,
+    marginTop: 2,
+  },
   missingCard: {
     marginTop: 28,
     backgroundColor: colors.background.card,

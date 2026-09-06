@@ -33,8 +33,8 @@ import {
   type ListedMarket,
   type OutcomeSide,
 } from '@hip4';
-import { isEconomicsCatalogMarket } from '@hip4/catalog';
-import { reportTrade } from '../lib/api';
+import { isEconomicsCatalogMarket, isFinishedFootballContest } from '@hip4/catalog';
+import { boardHasLiveFixture, catalogFootballFixtures, fetchEplBoard, reportTrade } from '../lib/api';
 import { useWebAuth } from '../lib/auth';
 import { interpolate, tHip4, useCopy } from '../lib/copy';
 import {
@@ -134,6 +134,14 @@ export function MarketPage() {
     queryFn: () => listOutcomes({ filter: 'all' }),
     staleTime: HIP4_CATALOG_STALE_MS,
   });
+  const eplQ = useQuery({
+    queryKey: ['sports', 'football', 'epl'],
+    queryFn: fetchEplBoard,
+    staleTime: 45_000,
+    refetchInterval: (q) => (boardHasLiveFixture(q.state.data) ? 45_000 : 90_000),
+    retry: 1,
+  });
+  const fixtures = useMemo(() => catalogFootballFixtures(eplQ.data), [eplQ.data]);
   const market = useMemo(
     () => (catalog.data ?? []).find((m) => m.id === id || String(m.outcomeId) === id) ?? null,
     [catalog.data, id],
@@ -651,12 +659,15 @@ export function MarketPage() {
     );
   }
 
-  const statusLabel =
-    market.status === 'live'
-      ? hip4.status.live
+  const matchFinished =
+    market.status !== 'settled' && isFinishedFootballContest(market, fixtures);
+  const statusLabel = market.status === 'settled'
+    ? hip4.status.settled
+    : matchFinished
+      ? hip4.featured.ft
       : market.status === 'upcoming'
         ? hip4.status.upcoming
-        : hip4.status.settled;
+        : hip4.status.live;
   const remain =
     market.expiresAt && market.expiresAt > Date.now()
       ? formatHms((market.expiresAt - Date.now()) / 1000)
@@ -785,6 +796,11 @@ export function MarketPage() {
           <h1 className="min-w-0 flex-1 text-2xl font-extrabold leading-tight">{heading}</h1>
         </div>
         {subtitle ? <p className="mt-1 text-sm text-[var(--text-2)]">{subtitle}</p> : null}
+        {matchFinished ? (
+          <p className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm font-semibold text-[var(--text-2)]">
+            {hip4.ticket.matchFinishedHint}
+          </p>
+        ) : null}
 
         <div className="mt-4">
           <ProbabilityChart

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, type FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   displayListedTitle,
@@ -12,6 +13,7 @@ import { questionVolumeUsd, searchCatalogRows, trendingCatalogMarkets } from '@h
 import { useWebAuth } from '../lib/auth';
 import { useSpotAccount } from '../lib/useSpotAccount';
 import { interpolate, useCopy } from '../lib/copy';
+import { boardHasLiveFixture, catalogFootballFixtures, fetchEplBoard } from '../lib/api';
 import { useCatalog } from './catalog';
 import { IconClose, IconSearch } from './icons';
 import { MarketSymbol } from './MarketSymbol';
@@ -32,6 +34,14 @@ export function SearchModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const catalog = useCatalog();
   const all = catalog.data ?? [];
+  const eplQ = useQuery({
+    queryKey: ['sports', 'football', 'epl'],
+    queryFn: fetchEplBoard,
+    staleTime: 45_000,
+    refetchInterval: (q) => (boardHasLiveFixture(q.state.data) ? 45_000 : 90_000),
+    retry: 1,
+  });
+  const fixtures = useMemo(() => catalogFootballFixtures(eplQ.data), [eplQ.data]);
   const { address, authenticated } = useWebAuth();
   const spot = useSpotAccount(address, authenticated);
   const heldOutcomeIds = useMemo(
@@ -41,15 +51,15 @@ export function SearchModal({
 
   const rows = useMemo(() => {
     const needle = query.trim();
-    if (!needle) return trendingCatalogMarkets(all, 'all', PREVIEW, heldOutcomeIds);
-    return searchCatalogRows(all, needle, heldOutcomeIds).slice(0, PREVIEW);
-  }, [all, query, heldOutcomeIds]);
+    if (!needle) return trendingCatalogMarkets(all, 'all', PREVIEW, heldOutcomeIds, fixtures);
+    return searchCatalogRows(all, needle, heldOutcomeIds, fixtures).slice(0, PREVIEW);
+  }, [all, query, heldOutcomeIds, fixtures]);
 
   const totalMatch = useMemo(() => {
     const needle = query.trim();
     if (!needle) return all.length;
-    return searchCatalogRows(all, needle, heldOutcomeIds).length;
-  }, [all, query, heldOutcomeIds]);
+    return searchCatalogRows(all, needle, heldOutcomeIds, fixtures).length;
+  }, [all, query, heldOutcomeIds, fixtures]);
 
   useEffect(() => {
     inputRef.current?.focus();

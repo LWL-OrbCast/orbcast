@@ -1,6 +1,12 @@
 import { api } from './api';
+import { rememberFootballBoard } from './footballBoardState';
+import {
+  boardFixtures,
+  type FootballBoard,
+  type FootballEvent,
+  type FootballFixture,
+} from './footballChrome';
 import { isTimestampOnLocalDay } from './marketCatalog';
-import type { FootballBoard, FootballEvent, FootballFixture } from './footballChrome';
 
 export type {
   FootballBoard,
@@ -13,6 +19,7 @@ export type {
 export {
   boardFixtures,
   boardHasLiveFixture,
+  catalogFootballFixtures,
   footballChromeFixture,
   footballLeagueFromCompetition,
   syntheticFootballFixture,
@@ -23,6 +30,7 @@ export type EplBoard = FootballBoard;
 
 export async function fetchEplBoard(): Promise<FootballBoard> {
   const { data } = await api.get<FootballBoard>('/sports/football/epl');
+  rememberFootballBoard(boardFixtures(data));
   return data;
 }
 

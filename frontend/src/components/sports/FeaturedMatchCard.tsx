@@ -486,8 +486,12 @@ export function FeaturedMatchCard({ onPress, catalog = [], book = null, onPressL
 
   const board = query.data;
   const fixtures = boardFixtures(board);
+  const fromBook = book ? fixtureForMarket(fixtures, book) : null;
   const fixture =
-    (book ? fixtureForMarket(fixtures, book) : null) ?? board?.featured ?? fixtures[0] ?? null;
+    (fromBook && !fromBook.finished ? fromBook : null) ??
+    (board?.featured && !board.featured.finished ? board.featured : null) ??
+    fixtures.find((f) => !f.finished) ??
+    null;
   if (board?.configured && fixture) {
     return (
       <FootballFeaturedCard

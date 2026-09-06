@@ -22,6 +22,7 @@ import {
   catalogListRows,
   featuredCatalogMarkets,
   hip4ContestForTeams,
+  isFinishedFootballContest,
   isFootballContestMarket,
   marketMatchesFixture,
   sameContestEvent,
@@ -35,8 +36,8 @@ import { useWebAuth } from '../lib/auth';
 import { useSpotAccount } from '../lib/useSpotAccount';
 import { catalogLegChipStyle } from './outcomeColors';
 import {
-  boardFixtures,
   boardHasLiveFixture,
+  catalogFootballFixtures,
   fetchEplBoard,
   footballChromeFixture,
   type EplFixture,
@@ -227,10 +228,11 @@ export function useFilteredCatalog(
   chip: SportChipId,
   query: string,
   heldOutcomeIds?: Iterable<number> | null,
+  fixtures?: EplFixture[] | null,
 ) {
   return useMemo(
-    () => catalogListRows(all, view, chip, query, heldOutcomeIds),
-    [all, view, chip, query, heldOutcomeIds],
+    () => catalogListRows(all, view, chip, query, heldOutcomeIds, fixtures),
+    [all, view, chip, query, heldOutcomeIds, fixtures],
   );
 }
 
@@ -424,7 +426,7 @@ function HomeFeatured({
   pinHref: string;
   pinBook: ListedMarket | null;
   markets: ListedMarket[];
-  fixtures: EplFixture[];
+  fixtures: EplFixture[] | null;
   catalog: ListedMarket[];
   heldOutcomeIds?: Iterable<number> | null;
   loading: boolean;
@@ -454,7 +456,11 @@ function HomeFeatured({
       });
     }
     for (const m of markets) {
-      const fx = isFootballContestMarket(m) ? footballChromeFixture(fixtures, m) : null;
+      if (isFinishedFootballContest(m, fixtures)) continue;
+      const fx = isFootballContestMarket(m)
+        ? footballChromeFixture(fixtures ?? [], m)
+        : null;
+      if (fx?.finished) continue;
       if (alreadyShown(m, fx)) continue;
       if (fx) {
         if (fx.fixtureId > 0) seenFixtureIds.add(fx.fixtureId);
@@ -557,15 +563,6 @@ export function HomePage() {
   const [showAllLive, setShowAllLive] = useState(false);
   const all = q.data ?? [];
   const scoped = useMemo(() => applySportChip(all, sport), [all, sport]);
-  const featured = useMemo(
-    () =>
-      featuredCatalogMarkets(all, sport, sport === 'all' || sport === 'football' ? 8 : 5, heldOutcomeIds),
-    [all, sport, heldOutcomeIds],
-  );
-  const trending = useMemo(
-    () => trendingCatalogMarkets(all, sport, 5, heldOutcomeIds),
-    [all, sport, heldOutcomeIds],
-  );
   const eplQ = useQuery({
     queryKey: ['sports', 'football', 'epl'],
     queryFn: fetchEplBoard,
@@ -574,7 +571,22 @@ export function HomePage() {
     retry: 1,
   });
   const catalogLoading = q.isLoading && !q.data;
-  const fixtures = useMemo(() => boardFixtures(eplQ.data), [eplQ.data]);
+  const fixtures = useMemo(() => catalogFootballFixtures(eplQ.data), [eplQ.data]);
+  const featured = useMemo(
+    () =>
+      featuredCatalogMarkets(
+        all,
+        sport,
+        sport === 'all' || sport === 'football' ? 8 : 5,
+        heldOutcomeIds,
+        fixtures,
+      ),
+    [all, sport, heldOutcomeIds, fixtures],
+  );
+  const trending = useMemo(
+    () => trendingCatalogMarkets(all, sport, 5, heldOutcomeIds, fixtures),
+    [all, sport, heldOutcomeIds, fixtures],
+  );
   const eplBoardFixture =
     eplQ.data?.configured && eplQ.data.featured ? eplQ.data.featured : null;
   const eplBook = useMemo(() => {
@@ -586,8 +598,10 @@ export function HomePage() {
       heldOutcomeIds,
     );
   }, [all, eplBoardFixture, heldOutcomeIds]);
-  const pinFixture =
-    sport === 'football' ? eplBoardFixture : eplBook ? eplBoardFixture : null;
+  const pinFixture = (() => {
+    if (!eplBoardFixture || eplBoardFixture.finished) return null;
+    return sport === 'football' || eplBook ? eplBoardFixture : null;
+  })();
   const showFootballHero = sport === 'all' || sport === 'football';
   const sliderMarkets = featured;
   const heroKey = showFootballHero ? `fb-${sport}` : sport;
@@ -601,12 +615,12 @@ export function HomePage() {
       : '/markets?view=open&sport=football';
   })();
   const endingSoon = useMemo(
-    () => catalogListRows(all, 'endingSoon', sport, '', heldOutcomeIds).slice(0, 5),
-    [all, sport, heldOutcomeIds],
+    () => catalogListRows(all, 'endingSoon', sport, '', heldOutcomeIds, fixtures).slice(0, 5),
+    [all, sport, heldOutcomeIds, fixtures],
   );
   const live = useMemo(
-    () => catalogListRows(all, 'open', sport, '', heldOutcomeIds),
-    [all, sport, heldOutcomeIds],
+    () => catalogListRows(all, 'open', sport, '', heldOutcomeIds, fixtures),
+    [all, sport, heldOutcomeIds, fixtures],
   );
 
   useEffect(() => {
@@ -630,7 +644,7 @@ export function HomePage() {
               pinHref={eplHref}
               pinBook={showFootballHero ? eplBook : null}
               markets={sliderMarkets}
-              fixtures={showFootballHero ? fixtures : []}
+              fixtures={showFootballHero ? fixtures : null}
               catalog={all}
               heldOutcomeIds={heldOutcomeIds}
               loading={catalogLoading}
@@ -700,7 +714,15 @@ export function MarketsPage() {
   const heldOutcomeIds = useHeldOutcomeIds();
   const [params] = useSearchParams();
   const [view, setView] = useState<MarketCatalogView>('endingSoon');
-  const rows = useFilteredCatalog(q.data ?? [], view, sport, search, heldOutcomeIds);
+  const eplQ = useQuery({
+    queryKey: ['sports', 'football', 'epl'],
+    queryFn: fetchEplBoard,
+    staleTime: 45_000,
+    refetchInterval: (q) => (boardHasLiveFixture(q.state.data) ? 45_000 : 90_000),
+    retry: 1,
+  });
+  const fixtures = useMemo(() => catalogFootballFixtures(eplQ.data), [eplQ.data]);
+  const rows = useFilteredCatalog(q.data ?? [], view, sport, search, heldOutcomeIds, fixtures);
 
   useEffect(() => {
     const qParam = params.get('q');

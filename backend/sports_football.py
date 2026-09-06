@@ -42,6 +42,7 @@ LEAGUES: Dict[int, Dict[str, str]] = {
 LIVE_LEAGUE_IDS = "-".join(str(i) for i in LEAGUES)
 LIVE_TTL_SEC = 90.0
 NEXT_TTL_SEC = 180.0
+FINISHED_TTL_SEC = 180.0
 EVENTS_TTL_SEC = 90.0
 REQUEST_TIMEOUT = 12.0
 EVENT_LIMIT = 4
@@ -330,6 +331,30 @@ async def _fetch_upcoming() -> List[Dict[str, Any]]:
     return rows
 
 
+async def _fetch_recent_league(league_id: int) -> List[Dict[str, Any]]:
+    """Most recent results (`last=`) so FT games stay on the board after they leave live=."""
+    season = epl_season()
+    raw = await _get(
+        "/fixtures",
+        {"league": league_id, "season": season, "last": 10},
+    )
+    return [n for n in (_normalize_fixture(x) for x in raw) if n and _league_id(n) == league_id]
+
+
+async def _fetch_recent_finished() -> List[Dict[str, Any]]:
+    batches = await asyncio.gather(
+        *(_fetch_recent_league(lid) for lid in LEAGUES),
+        return_exceptions=True,
+    )
+    rows: List[Dict[str, Any]] = []
+    for batch in batches:
+        if isinstance(batch, BaseException):
+            logger.warning("api-sports finished league failed: %s", type(batch).__name__)
+            continue
+        rows.extend(r for r in batch if r.get("finished"))
+    return rows
+
+
 async def _fetch_events(fixture_id: int) -> List[Dict[str, Any]]:
     raw = await _get("/fixtures/events", {"fixture": fixture_id})
     out: List[Dict[str, Any]] = []
@@ -402,16 +427,19 @@ def _shared_board_set(board: Dict[str, Any]) -> None:
 async def _build_epl_board(season: int) -> Dict[str, Any]:
     live: List[Dict[str, Any]] = []
     upcoming: List[Dict[str, Any]] = []
+    finished: List[Dict[str, Any]] = []
     try:
-        live, upcoming_raw = await asyncio.gather(
+        live, upcoming_raw, finished = await asyncio.gather(
             _live_fixtures(),
             _cached("fb:upcoming", NEXT_TTL_SEC, _fetch_upcoming),
+            _cached("fb:finished", FINISHED_TTL_SEC, _fetch_recent_finished),
         )
         upcoming = [r for r in upcoming_raw if not r.get("finished")]
     except (httpx.HTTPError, ValueError, TypeError) as exc:
         logger.warning("api-sports football board failed: %s", type(exc).__name__)
         live = _cache_stale("fb:live") or []
         upcoming = _cache_stale("fb:upcoming") or []
+        finished = _cache_stale("fb:finished") or []
 
     featured = _pick_featured(live, upcoming)
     events: List[Dict[str, Any]] = []
@@ -424,7 +452,7 @@ async def _build_epl_board(season: int) -> Dict[str, Any]:
     if featured:
         featured = {**featured, "events": events}
 
-    matches = _dedupe_fixtures([*live, *upcoming])
+    matches = _dedupe_fixtures([*live, *upcoming, *finished])
     return {
         **_empty_board(season, True),
         "featured": featured,

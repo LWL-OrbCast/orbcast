@@ -32,7 +32,7 @@ import {
   trendingCatalogMarkets,
 } from '../src/lib/marketCatalog';
 import { useHyperliquidSpotState } from '../src/lib/useHyperliquidAccountStream';
-import { boardFixtures, boardHasLiveFixture, fetchEplBoard } from '../src/lib/sportsFootball';
+import { boardHasLiveFixture, catalogFootballFixtures, fetchEplBoard } from '../src/lib/sportsFootball';
 import { HomeHeader } from '../src/components/sports/HomeHeader';
 import { SportCategoryRow, type SportChipId } from '../src/components/sports/SportCategoryRow';
 import { FeaturedEventSlider } from '../src/components/sports/FeaturedEventSlider';
@@ -73,14 +73,6 @@ export default function HomeScreen() {
 
   const all = query.data ?? [];
   const scoped = useMemo(() => applySportChip(all, chip), [all, chip]);
-  const trending = useMemo(
-    () => trendingCatalogMarkets(all, chip, 3, heldOutcomeIds),
-    [all, chip, heldOutcomeIds],
-  );
-  const featured = useMemo(
-    () => featuredCatalogMarkets(all, chip, 1, heldOutcomeIds),
-    [all, chip, heldOutcomeIds],
-  );
   const eplQuery = useQuery({
     queryKey: ['sports', 'football', 'epl'],
     queryFn: fetchEplBoard,
@@ -88,7 +80,15 @@ export default function HomeScreen() {
     refetchInterval: (q) => (boardHasLiveFixture(q.state.data) ? 45_000 : 90_000),
     retry: 1,
   });
-  const fixtures = useMemo(() => boardFixtures(eplQuery.data), [eplQuery.data]);
+  const fixtures = useMemo(() => catalogFootballFixtures(eplQuery.data), [eplQuery.data]);
+  const trending = useMemo(
+    () => trendingCatalogMarkets(all, chip, 3, heldOutcomeIds, fixtures),
+    [all, chip, heldOutcomeIds, fixtures],
+  );
+  const featured = useMemo(
+    () => featuredCatalogMarkets(all, chip, 1, heldOutcomeIds, fixtures),
+    [all, chip, heldOutcomeIds, fixtures],
+  );
   const eplFixture = eplQuery.data?.configured ? eplQuery.data.featured ?? null : null;
   const eplBook = useMemo(() => {
     if (!eplFixture) return null;
@@ -113,8 +113,8 @@ export default function HomeScreen() {
   };
 
   const rows = useMemo(
-    () => catalogListRows(all, 'endingSoon', chip, '', heldOutcomeIds),
-    [all, chip, heldOutcomeIds],
+    () => catalogListRows(all, 'endingSoon', chip, '', heldOutcomeIds, fixtures),
+    [all, chip, heldOutcomeIds, fixtures],
   );
   const visibleRows = useMemo(
     () => (showAllEndingSoon ? rows : rows.slice(0, ENDING_SOON_PREVIEW)),

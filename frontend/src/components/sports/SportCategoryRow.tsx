@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -47,6 +47,7 @@ type Props = {
 
 export function SportCategoryRow({ active, onChange }: Props) {
   const { t } = useTranslation();
+  const scrollerRef = useRef<ScrollView>(null);
   const viewW = useRef(0);
   const contentW = useRef(0);
   const offsetX = useRef(0);
@@ -55,6 +56,13 @@ export function SportCategoryRow({ active, onChange }: Props) {
   const syncFade = () => {
     setShowEndFade(contentW.current - viewW.current - offsetX.current > 8);
   };
+
+  useEffect(() => {
+    if (active !== 'all') return;
+    scrollerRef.current?.scrollTo({ x: 0, animated: true });
+    offsetX.current = 0;
+    syncFade();
+  }, [active]);
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     offsetX.current = e.nativeEvent.contentOffset.x;
@@ -65,6 +73,7 @@ export function SportCategoryRow({ active, onChange }: Props) {
     <View style={styles.shell}>
       <View style={styles.tray}>
         <ScrollView
+          ref={scrollerRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.row}

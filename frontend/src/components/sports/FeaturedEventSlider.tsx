@@ -1,16 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import type { ListedMarket } from '../../lib/hip4';
-import { displayListedTitle, questionSiblings } from '../../lib/hip4';
-import { useFeaturedAutoplay } from '../../lib/useFeaturedAutoplay';
+  displayFeaturedHeading,
+  formatHighlightVolume,
+  questionSiblings,
+  type ListedMarket,
+} from '../../lib/hip4';
+import { footballChromeFixture, type FootballFixture } from '../../lib/sportsFootball';
+import { isFootballContestMarket } from '../../lib/marketCatalog';
+import { FootballFeaturedCard } from './FeaturedMatchCard';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/fonts';
 import { MarketSymbol } from './MarketSymbol';
@@ -20,110 +18,41 @@ import { useTranslation } from 'react-i18next';
 type Props = {
   markets: ListedMarket[];
   catalog: ListedMarket[];
+  fixtures?: FootballFixture[];
   onPressQuestion: (market: ListedMarket) => void;
   onPressLeg: (market: ListedMarket) => void;
 };
 
-export function FeaturedEventSlider({ markets, catalog, onPressQuestion, onPressLeg }: Props) {
-  const [pageW, setPageW] = useState(0);
-  const [heights, setHeights] = useState<Record<string, number>>({});
-  const scroller = useRef<ScrollView>(null);
-  const fromScroll = useRef(false);
-  const { index, progress, go, pause, resume } = useFeaturedAutoplay(markets.length);
-  const pageH = heights[markets[index]?.id ?? ''] ?? 0;
-
-  useEffect(() => {
-    if (pageW <= 0) return;
-    if (fromScroll.current) {
-      fromScroll.current = false;
-      return;
-    }
-    scroller.current?.scrollTo({ x: index * pageW, animated: true });
-  }, [index, pageW]);
-
-  if (!markets.length) return null;
-
-  return (
-    <View onLayout={(e) => setPageW(e.nativeEvent.layout.width)}>
-      <View style={pageH > 0 ? { height: pageH, overflow: 'hidden' } : undefined}>
-        <ScrollView
-          ref={scroller}
-          horizontal
-          pagingEnabled
-          decelerationRate="fast"
-          showsHorizontalScrollIndicator={false}
-          style={pageH > 0 ? { height: pageH } : undefined}
-          contentContainerStyle={styles.pagerRow}
-          onScrollBeginDrag={pause}
-          onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
-            resume();
-            if (pageW <= 0) return;
-            fromScroll.current = true;
-            go(Math.round(e.nativeEvent.contentOffset.x / pageW));
-          }}
-        >
-          {markets.map((m) => (
-            <View
-              key={m.id}
-              style={[pageW > 0 ? { width: pageW } : styles.pageFallback, styles.page]}
-            >
-              <FeaturedSlide
-                market={m}
-                catalog={catalog}
-                pageW={pageW}
-                onHeight={(next) => {
-                  setHeights((prev) => (prev[m.id] === next ? prev : { ...prev, [m.id]: next }));
-                }}
-                pager={
-                  markets.length > 1 ? (
-                    <FeaturedDots
-                      markets={markets}
-                      index={index}
-                      progress={progress}
-                      onDot={go}
-                    />
-                  ) : null
-                }
-                onPressQuestion={onPressQuestion}
-                onPressLeg={onPressLeg}
-              />
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-    </View>
-  );
-}
-
-function FeaturedDots({
+export function FeaturedEventSlider({
   markets,
-  index,
-  progress,
-  onDot,
-}: {
-  markets: ListedMarket[];
-  index: number;
-  progress: number;
-  onDot: (i: number) => void;
-}) {
+  catalog,
+  fixtures = [],
+  onPressQuestion,
+  onPressLeg,
+}: Props) {
+  const market = markets[0];
+  if (!market) return null;
+
+  const football = footballChromeFixture(fixtures, market);
+  if (isFootballContestMarket(market) && football) {
+    return (
+      <FootballFeaturedCard
+        fixture={football}
+        book={market}
+        catalog={catalog}
+        onPress={() => onPressQuestion(market)}
+        onPressLeg={onPressLeg}
+      />
+    );
+  }
+
   return (
-    <View style={styles.dots}>
-      {markets.map((m, i) => {
-        const on = i === index;
-        return (
-          <Pressable
-            key={m.id}
-            onPress={() => onDot(i)}
-            hitSlop={8}
-            style={[styles.dot, on && styles.dotOn]}
-          >
-            {on ? (
-              <View style={[styles.dotFill, { width: `${Math.round(progress * 100)}%` }]} />
-            ) : null}
-          </Pressable>
-        );
-      })}
-    </View>
+    <GenericFeaturedCard
+      market={market}
+      catalog={catalog}
+      onPressQuestion={onPressQuestion}
+      onPressLeg={onPressLeg}
+    />
   );
 }
 
@@ -131,29 +60,21 @@ const CARD_PAD = 18;
 const TITLE_ICON = 44;
 const TITLE_GAP = 12;
 
-function FeaturedSlide({
+const GenericFeaturedCard = React.memo(function GenericFeaturedCard({
   market,
   catalog,
-  pageW,
-  pager,
-  onHeight,
   onPressQuestion,
   onPressLeg,
 }: {
   market: ListedMarket;
   catalog: ListedMarket[];
-  pageW: number;
-  pager: React.ReactNode;
-  onHeight: (h: number) => void;
   onPressQuestion: (market: ListedMarket) => void;
   onPressLeg: (market: ListedMarket) => void;
 }) {
   const { t } = useTranslation();
   const siblings = useMemo(() => questionSiblings(catalog, market), [catalog, market]);
   const multiLeg = siblings.length > 1;
-  const heading = multiLeg
-    ? market.questionName || displayListedTitle(market)
-    : displayListedTitle(market);
+  const heading = displayFeaturedHeading(market);
   const yes = market.sides[0];
   const no = market.sides[1];
   const statusLabel =
@@ -162,13 +83,22 @@ function FeaturedSlide({
       : market.status === 'upcoming'
         ? t('hip4.status.upcoming')
         : t('hip4.status.settled');
-  const titleMaxW = pageW > 0 ? Math.max(0, pageW - CARD_PAD * 2 - TITLE_ICON - TITLE_GAP) : undefined;
+  const volUsd = multiLeg
+    ? siblings.reduce((sum, m) => sum + (m.volumeUsd ?? 0), 0)
+    : (market.volumeUsd ?? 0);
+  const vol = formatHighlightVolume(volUsd);
+  const endLabel = market.expiresAt
+    ? `Ends ${new Date(market.expiresAt).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })}`
+    : null;
+  const metaParts = [vol !== '—' ? `${vol} Vol` : null, endLabel].filter(Boolean);
+  const meta = metaParts.join(' · ');
 
   return (
-    <View
-      style={styles.card}
-      onLayout={(e) => onHeight(Math.ceil(e.nativeEvent.layout.height))}
-    >
+    <View style={styles.card}>
       <View style={styles.topRow}>
         <View style={[styles.statusDot, market.status === 'live' && styles.statusDotLive]} />
         <Text style={styles.status}>{statusLabel}</Text>
@@ -178,10 +108,8 @@ function FeaturedSlide({
         style={({ pressed }) => [styles.titleRow, pressed && { opacity: 0.88 }]}
       >
         <MarketSymbol market={market} size={TITLE_ICON} radius={12} questionLevel />
-        <View style={[styles.titleWrap, titleMaxW != null ? { maxWidth: titleMaxW } : null]}>
-          <Text style={styles.title}>
-            {heading}
-          </Text>
+        <View style={styles.titleWrap}>
+          <Text style={styles.title}>{heading}</Text>
         </View>
       </Pressable>
       {multiLeg ? (
@@ -189,7 +117,10 @@ function FeaturedSlide({
           {siblings.map((leg, i) => {
             const px = leg.sides.find((s) => s.side === 0)?.probability ?? null;
             return (
-              <View key={leg.id} style={styles.stamp}>
+              <View
+                key={leg.id}
+                style={[styles.stamp, siblings.length === 3 ? styles.stampTriple : null]}
+              >
                 <OddsPill
                   label={leg.legLabel || t('hip4.yes')}
                   probability={px}
@@ -219,15 +150,18 @@ function FeaturedSlide({
           />
         </View>
       )}
-      {pager ? <View style={styles.pager}>{pager}</View> : null}
+      {meta ? (
+        <View style={styles.footer}>
+          <Text style={styles.meta} numberOfLines={1}>
+            {meta}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
-  pagerRow: { alignItems: 'flex-start' },
-  pageFallback: { width: '100%' },
-  page: { alignSelf: 'stretch' },
   card: {
     alignSelf: 'stretch',
     width: '100%',
@@ -259,7 +193,7 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     alignSelf: 'stretch',
     width: '100%',
     gap: TITLE_GAP,
@@ -286,37 +220,25 @@ const styles = StyleSheet.create({
     width: '47%',
     flexGrow: 1,
   },
+  stampTriple: {
+    width: '31%',
+    flexGrow: 1,
+  },
   yesNo: {
     flexDirection: 'row',
     gap: 8,
     marginTop: 12,
   },
-  pager: {
+  footer: {
     marginTop: 14,
-    alignItems: 'flex-end',
-  },
-  dots: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 6,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.border.primary,
-    overflow: 'hidden',
-  },
-  dotOn: {
-    width: 32,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.border.primary,
-  },
-  dotFill: {
-    height: '100%',
-    backgroundColor: colors.text.primary,
-    borderRadius: 4,
+  meta: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.text.tertiary,
+    fontSize: 12,
+    fontFamily: fonts.semibold,
   },
 });

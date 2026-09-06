@@ -1,52 +1,28 @@
 import { api } from './api';
 import { isTimestampOnLocalDay } from './marketCatalog';
+import type { FootballBoard, FootballEvent, FootballFixture } from './footballChrome';
 
-export type FootballTeam = {
-  id: number | null;
-  name: string;
-  logo: string;
-};
+export type {
+  FootballBoard,
+  FootballEvent,
+  FootballFixture,
+  FootballGoals,
+  FootballTeam,
+} from './footballChrome';
 
-export type FootballGoals = {
-  home: number | null;
-  away: number | null;
-};
+export {
+  boardFixtures,
+  boardHasLiveFixture,
+  footballChromeFixture,
+  footballLeagueFromCompetition,
+  syntheticFootballFixture,
+} from './footballChrome';
 
-export type FootballEvent = {
-  elapsed: number | null;
-  extra: number | null;
-  type: string;
-  detail: string;
-  team: string;
-  player: string;
-};
+/** @deprecated Use FootballBoard — same `/sports/football/epl` payload. */
+export type EplBoard = FootballBoard;
 
-export type FootballFixture = {
-  fixtureId: number;
-  kickoffAt: number | null;
-  status: string;
-  statusLong: string;
-  elapsed: number | null;
-  live: boolean;
-  finished: boolean;
-  home: FootballTeam;
-  away: FootballTeam;
-  goals: FootballGoals;
-  league: { id: number; name: string; logo: string; round: string };
-  venue: string;
-  events?: FootballEvent[];
-};
-
-export type EplBoard = {
-  configured: boolean;
-  season: number;
-  league: { id: number; name: string; logo: string };
-  featured: FootballFixture | null;
-  upcoming: FootballFixture[];
-};
-
-export async function fetchEplBoard(): Promise<EplBoard> {
-  const { data } = await api.get<EplBoard>('/sports/football/epl');
+export async function fetchEplBoard(): Promise<FootballBoard> {
+  const { data } = await api.get<FootballBoard>('/sports/football/epl');
   return data;
 }
 

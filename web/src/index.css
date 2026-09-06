@@ -31,7 +31,7 @@ html, body, #root {
   max-width: 100%;
   overflow-x: clip;
 }
-button { cursor: pointer; font: inherit; }
+button { cursor: pointer; font-family: inherit; }
 a { color: inherit; text-decoration: none; }
 
 .no-scrollbar {
@@ -76,6 +76,41 @@ a { color: inherit; text-decoration: none; }
 .btn-ghost-stamp {
   background: #fff;
   color: var(--ink);
+}
+
+/* Quiet chips on Live / Ending soon / Upcoming cards — not the hero stamps. */
+.btn-catalog {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+  background: var(--bg-2);
+  box-shadow: none;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.btn-catalog:hover:not(:disabled) {
+  background: #fff;
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--border));
+}
+.btn-catalog-yes {
+  background: color-mix(in srgb, var(--yes) 14%, #fff);
+  border-color: color-mix(in srgb, var(--yes) 28%, #fff);
+  color: #166534;
+}
+.btn-catalog-yes:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--yes) 22%, #fff);
+  border-color: color-mix(in srgb, var(--yes) 40%, #fff);
+}
+.btn-catalog-no {
+  background: color-mix(in srgb, var(--no) 16%, #fff);
+  border-color: color-mix(in srgb, var(--no) 30%, #fff);
+  color: #5b21b6;
+}
+.btn-catalog-no:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--no) 24%, #fff);
+  border-color: color-mix(in srgb, var(--no) 42%, #fff);
 }
 
 @keyframes page-enter {

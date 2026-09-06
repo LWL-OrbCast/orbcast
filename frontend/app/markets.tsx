@@ -18,14 +18,20 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors } from '../src/theme/colors';
 import { fonts } from '../src/theme/fonts';
-import { HIP4_CATALOG_POLL_MS, HIP4_CATALOG_STALE_MS, listOutcomes } from '../src/lib/hip4';
 import {
-  applyCatalogView,
-  applySearch,
+  HIP4_CATALOG_POLL_MS,
+  HIP4_CATALOG_STALE_MS,
+  heldOutcomeIdsFromBalances,
+  listOutcomes,
+  questionTicketMarket,
+} from '../src/lib/hip4';
+import {
   applySportChip,
   catalogEmptyKind,
+  catalogListRows,
   type MarketCatalogView,
 } from '../src/lib/marketCatalog';
+import { useHyperliquidSpotState } from '../src/lib/useHyperliquidAccountStream';
 import { HomeHeader } from '../src/components/sports/HomeHeader';
 import { SportCategoryRow, type SportChipId } from '../src/components/sports/SportCategoryRow';
 import { PredictionRow } from '../src/components/sports/PredictionRow';
@@ -51,6 +57,11 @@ export default function MarketsScreen() {
   const params = useLocalSearchParams<{ q?: string | string[]; view?: string | string[] }>();
   const focused = useIsFocused();
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const spot = useHyperliquidSpotState();
+  const heldOutcomeIds = useMemo(
+    () => heldOutcomeIdsFromBalances(spot?.balances),
+    [spot?.balances],
+  );
   const [queryText, setQueryText] = useState(() => firstParam(params.q) ?? '');
   const [view, setView] = useState<MarketCatalogView>(() => {
     const v = firstParam(params.view);
@@ -78,12 +89,10 @@ export default function MarketsScreen() {
 
   const all = catalogQuery.data ?? [];
 
-  const rows = useMemo(() => {
-    let next = applyCatalogView(all, view);
-    next = applySportChip(next, chip);
-    next = applySearch(next, queryText);
-    return next;
-  }, [all, view, chip, queryText]);
+  const rows = useMemo(
+    () => catalogListRows(all, view, chip, queryText, heldOutcomeIds),
+    [all, view, chip, queryText, heldOutcomeIds],
+  );
   const emptyKind = catalogEmptyKind(chip, applySportChip(all, chip).length);
 
   const onPullRefresh = async () => {
@@ -181,7 +190,11 @@ export default function MarketsScreen() {
         renderItem={({ item }) => (
           <PredictionRow
             market={item}
-            onPress={() => pushRouteOnce(router, `/market/${item.id}`)}
+            catalog={all}
+            onPress={() =>
+              pushRouteOnce(router, `/market/${questionTicketMarket(all, item, heldOutcomeIds).id}`)
+            }
+            onPressLeg={(m) => pushRouteOnce(router, `/market/${m.id}`)}
           />
         )}
         ListEmptyComponent={

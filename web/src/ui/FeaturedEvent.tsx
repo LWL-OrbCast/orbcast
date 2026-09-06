@@ -1,22 +1,23 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   CANDLE_INTERVAL_MS,
-  displayListedTitle,
+  displayFeaturedHeading,
   fetchLegCandleSamples,
   formatHighlightVolume,
   impliedPercent,
+  isOtherOutcomeLeg,
   questionSiblings,
   questionTicketMarket,
   type ListedMarket,
   type OutcomeSide,
 } from '@hip4';
-import { isEconomicsCatalogMarket } from '@hip4/catalog';
+import { isEconomicsCatalogMarket, questionVolumeUsd } from '@hip4/catalog';
 import { useCopy } from '../lib/copy';
 import { WEB_CHART_RANGES, type WebChartRangeId } from './chartRanges';
 import { formatEndDate, formatHms, looksLikeScheduleSubtitle } from './formatTime';
-import { LEG_PALETTE, NO_COLOR, YES_COLOR } from './outcomeColors';
+import { LEG_PALETTE, multiLegStampColor, multiLegStampGridClass, NO_COLOR, YES_COLOR } from './outcomeColors';
 import { ProbabilityChart, type ProbSeries } from './ProbabilityChart';
 import { RollingNumber } from './RollingNumber';
 import { ShareMarketButton } from './ShareMarketButton';
@@ -27,11 +28,15 @@ import { useFeaturedAutoplay } from '@hip4/autoplay';
 export function FeaturedEvent({
   markets,
   catalog = [],
+  heldOutcomeIds,
   loading,
+  pager,
 }: {
   markets: ListedMarket[];
   catalog?: ListedMarket[];
+  heldOutcomeIds?: Iterable<number> | null;
   loading: boolean;
+  pager?: ReactNode;
 }) {
   const { hip4 } = useCopy();
   const { index, progress, go, pause, resume } = useFeaturedAutoplay(markets.length);
@@ -48,27 +53,28 @@ export function FeaturedEvent({
     );
   }
 
-  const vol = formatHighlightVolume(featured.volumeUsd);
+  const vol = formatHighlightVolume(questionVolumeUsd(catalog, featured));
   return (
     <div onPointerEnter={pause} onPointerLeave={resume}>
       <article className="card-shadow w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-[var(--border)] bg-white">
-        <FeaturedCard market={featured} catalog={catalog} />
+        <FeaturedCard market={featured} catalog={catalog} heldOutcomeIds={heldOutcomeIds} />
         <div className="flex items-center justify-between gap-3 px-4 pb-4 sm:px-6">
           <div className="min-w-0 truncate text-xs font-semibold text-[var(--text-3)]">
             {vol !== '—' ? <span>{vol} Vol</span> : null}
             {vol !== '—' && featured.expiresAt ? <span> · </span> : null}
             {featured.expiresAt ? <span>Ends {formatEndDate(featured.expiresAt)}</span> : null}
           </div>
-          {markets.length > 1 ? (
-            <FeaturedDots total={markets.length} index={index} progress={progress} onDot={go} />
-          ) : null}
+          {pager ??
+            (markets.length > 1 ? (
+              <FeaturedDots total={markets.length} index={index} progress={progress} onDot={go} />
+            ) : null)}
         </div>
       </article>
     </div>
   );
 }
 
-function FeaturedDots({
+export function FeaturedDots({
   total,
   index,
   progress,
@@ -171,13 +177,15 @@ function FeaturedCountdown({ market }: { market: ListedMarket }) {
 const FeaturedCard = memo(function FeaturedCard({
   market,
   catalog,
+  heldOutcomeIds,
 }: {
   market: ListedMarket;
   catalog: ListedMarket[];
+  heldOutcomeIds?: Iterable<number> | null;
 }) {
   const navigate = useNavigate();
   const { hip4 } = useCopy();
-  const [rangeId, setRangeId] = useState<WebChartRangeId>('1d');
+  const [rangeId, setRangeId] = useState<WebChartRangeId>('1h');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const yes = market.sides[0];
   const no = market.sides[1];
@@ -187,9 +195,7 @@ const FeaturedCard = memo(function FeaturedCard({
     [catalog, market],
   );
   const multiLeg = siblings.length > 1;
-  const heading = multiLeg
-    ? market.questionName || displayListedTitle(market)
-    : displayListedTitle(market);
+  const heading = displayFeaturedHeading(market);
   const showSubtitle =
     Boolean(market.subtitle) &&
     market.subtitle !== heading &&
@@ -225,7 +231,7 @@ const FeaturedCard = memo(function FeaturedCard({
   }, [market, multiLeg, siblings]);
 
   const legsKey = legs.map((l) => l.key).join(',');
-  const range = WEB_CHART_RANGES.find((r) => r.id === rangeId) ?? WEB_CHART_RANGES[2];
+  const range = WEB_CHART_RANGES.find((r) => r.id === rangeId) ?? WEB_CHART_RANGES[0];
 
   useEffect(() => {
     setSelectedKey(legs[0]?.key ?? null);
@@ -274,7 +280,7 @@ const FeaturedCard = memo(function FeaturedCard({
     });
   }, [legs, chartQ.data, range.interval, rangePending, multiLeg, resolvedKey]);
 
-  const ticketId = questionTicketMarket(catalog, market).id;
+  const ticketId = questionTicketMarket(catalog, market, heldOutcomeIds).id;
   const go = (side?: 0 | 1) => {
     const q = side === 1 ? '?side=1' : side === 0 ? '?side=0' : '';
     navigate(`/market/${ticketId}${q}`);
@@ -318,11 +324,7 @@ const FeaturedCard = memo(function FeaturedCard({
 
         <div className="mt-5 grid min-w-0 gap-2 pb-1 pr-1 sm:gap-3">
           {multiLeg ? (
-            <div
-              className={`grid min-w-0 gap-2 sm:gap-3 ${
-                siblings.length === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'
-              }`}
-            >
+            <div className={`grid min-w-0 gap-2 sm:gap-3 ${multiLegStampGridClass(siblings.length)}`}>
               {siblings.map((m, i) => {
                 const px = m.sides.find((s) => s.side === 0)?.probability ?? null;
                 return (
@@ -330,8 +332,8 @@ const FeaturedCard = memo(function FeaturedCard({
                     key={m.id}
                     type="button"
                     onClick={() => navigate(`/market/${m.id}`)}
-                    className="btn-stamp min-w-0 px-2 py-3 text-[12px] leading-tight sm:py-3.5 sm:text-sm"
-                    style={{ background: LEG_PALETTE[i % LEG_PALETTE.length] }}
+                    className="btn-stamp min-w-0 px-1.5 py-2.5 text-[11px] leading-tight sm:px-2 sm:py-3.5 sm:text-sm"
+                    style={{ background: multiLegStampColor(isOtherOutcomeLeg(m), i) }}
                   >
                     <span className="line-clamp-2">
                       {m.legLabel || hip4.yes} {impliedPercent(px)}

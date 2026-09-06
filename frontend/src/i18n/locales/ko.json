@@ -793,7 +793,8 @@
         "settled": "정산됨"
       },
       "row": {
-        "volume": "거래량 {{amount}}"
+        "volume": "거래량 {{amount}}",
+        "moreOutcomes": "+{{count}}개 더"
       },
       "featured": {
         "league": "UEFA 챔피언스리그",

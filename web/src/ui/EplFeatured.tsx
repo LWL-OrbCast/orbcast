@@ -1,9 +1,24 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import {
+  CANDLE_INTERVAL_MS,
+  fetchLegCandleSamples,
+  formatHighlightVolume,
+  impliedPercent,
+  isOtherOutcomeLeg,
+  questionSiblings,
+  type ListedMarket,
+  type OutcomeSide,
+} from '@hip4';
 import type { EplFixture } from '../lib/api';
 import { interpolate, useCopy } from '../lib/copy';
-import { formatHms } from './formatTime';
+import { WEB_CHART_RANGES, type WebChartRangeId } from './chartRanges';
+import { formatEndDate, formatHms } from './formatTime';
+import { LEG_PALETTE, multiLegStampColor, multiLegStampGridClass, NO_COLOR, YES_COLOR } from './outcomeColors';
+import { ChartRangePills, ProbabilityChart, type ProbSeries } from './ProbabilityChart';
 import { RollingNumber } from './RollingNumber';
+import { TeamCrest } from './TeamCrest';
 import bannerArsenalVilla from '../../../frontend/assets/images/symbols/featured-arsenal-villa.webp';
 import bannerStadium from '../../../frontend/assets/images/symbols/featured-banner.webp';
 
@@ -46,6 +61,19 @@ function formatKickoff(ms: number): string {
   });
 }
 
+function useLgUp() {
+  const [lg, setLg] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => setLg(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return lg;
+}
+
 function StatusPill({ label, live }: { label: string; live?: boolean }) {
   return (
     <span
@@ -72,8 +100,218 @@ function StatusPill({ label, live }: { label: string; live?: boolean }) {
   );
 }
 
-export function EplFeatured({ fixture, href }: { fixture: EplFixture; href: string }) {
+function Hip4BannerOdds({
+  book,
+  catalog,
+}: {
+  book: ListedMarket;
+  catalog: ListedMarket[];
+}) {
+  const navigate = useNavigate();
   const { hip4 } = useCopy();
+  const siblings = useMemo(
+    () => (catalog.length ? questionSiblings(catalog, book) : [book]),
+    [book, catalog],
+  );
+  const multiLeg = siblings.length > 1;
+  const yes = book.sides[0];
+  const no = book.sides[1];
+
+  return (
+    <div className="relative z-10 mt-3 grid min-w-0 gap-2">
+      {multiLeg ? (
+        <div
+          className={`grid min-w-0 gap-2 ${multiLegStampGridClass(siblings.length)}`}
+        >
+          {siblings.map((m, i) => {
+            const px = m.sides.find((s) => s.side === 0)?.probability ?? null;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate(`/market/${m.id}`);
+                }}
+                className="btn-stamp min-w-0 px-1.5 py-2 text-[11px] leading-tight sm:px-2 sm:py-2.5 sm:text-sm"
+                style={{ background: multiLegStampColor(isOtherOutcomeLeg(m), i) }}
+              >
+                <span className="line-clamp-2">
+                  {m.legLabel || hip4.yes} {impliedPercent(px)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid min-w-0 grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              navigate(`/market/${book.id}`);
+            }}
+            className="btn-stamp btn-yes min-w-0 truncate py-2 text-sm sm:py-2.5"
+          >
+            {yes?.name ?? hip4.yes} {impliedPercent(yes?.probability ?? null)}
+          </button>
+          {no ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate(`/market/${book.id}`);
+              }}
+              className="btn-stamp btn-no min-w-0 truncate py-2 text-sm sm:py-2.5"
+            >
+              {no.name ?? hip4.no} {impliedPercent(no.probability ?? null)}
+            </button>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EplDesktopBook({ book, catalog }: { book: ListedMarket; catalog: ListedMarket[] }) {
+  const { hip4 } = useCopy();
+  const [rangeId, setRangeId] = useState<WebChartRangeId>('1h');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const siblings = useMemo(
+    () => (catalog.length ? questionSiblings(catalog, book) : [book]),
+    [book, catalog],
+  );
+  const multiLeg = siblings.length > 1;
+
+  const legs = useMemo(() => {
+    if (multiLeg) {
+      return siblings.map((m) => ({
+        key: `${m.outcomeId}:0`,
+        outcomeId: m.outcomeId,
+        side: 0 as OutcomeSide,
+        seed: m.sides.find((s) => s.side === 0)?.probability ?? null,
+        label: m.legLabel || hip4.yes,
+      }));
+    }
+    return [
+      {
+        key: `${book.outcomeId}:0`,
+        outcomeId: book.outcomeId,
+        side: 0 as OutcomeSide,
+        seed: book.sides[0]?.probability ?? null,
+        label: book.sides[0]?.name ?? hip4.yes,
+      },
+      {
+        key: `${book.outcomeId}:1`,
+        outcomeId: book.outcomeId,
+        side: 1 as OutcomeSide,
+        seed: book.sides[1]?.probability ?? null,
+        label: book.sides[1]?.name ?? hip4.no,
+      },
+    ];
+  }, [book, hip4.no, hip4.yes, multiLeg, siblings]);
+
+  const legsKey = legs.map((l) => l.key).join(',');
+  const range = WEB_CHART_RANGES.find((r) => r.id === rangeId) ?? WEB_CHART_RANGES[0];
+
+  useEffect(() => {
+    setSelectedKey(legs[0]?.key ?? null);
+  }, [legsKey]);
+
+  const resolvedKey =
+    selectedKey && legs.some((l) => l.key === selectedKey) ? selectedKey : (legs[0]?.key ?? null);
+
+  const chartQ = useQuery({
+    queryKey: ['hip4', 'candles', 'epl-featured', legsKey, range.id],
+    enabled: legs.length > 0,
+    queryFn: () => {
+      const end = Date.now();
+      return fetchLegCandleSamples(legs, range.interval, end - range.spanMs, end);
+    },
+    staleTime: 30_000,
+  });
+
+  const rangePending = chartQ.isPending;
+  const series: ProbSeries[] = useMemo(() => {
+    const now = Date.now();
+    const bucket = CANDLE_INTERVAL_MS[range.interval];
+    return legs.map((leg, i) => {
+      const hist = rangePending ? [] : (chartQ.data?.[leg.key] ?? []);
+      const live = leg.seed ?? hist[hist.length - 1]?.p ?? 0.5;
+      const last = hist[hist.length - 1];
+      let samples = hist;
+      if (rangePending) {
+        samples = [];
+      } else if (last && now - last.t < bucket) {
+        samples = [...hist.slice(0, -1), { t: last.t, p: live }, { t: now, p: live }];
+      } else if (hist.length) {
+        samples = [...hist, { t: now, p: live }];
+      } else {
+        samples = [
+          { t: now - Math.min(bucket * 8, bucket * 12), p: live },
+          { t: now, p: live },
+        ];
+      }
+      const color = multiLeg
+        ? LEG_PALETTE[i % LEG_PALETTE.length]
+        : leg.side === 0
+          ? YES_COLOR
+          : NO_COLOR;
+      return { key: leg.key, label: leg.label, color, samples, selected: leg.key === resolvedKey };
+    });
+  }, [chartQ.data, legs, multiLeg, range.interval, rangePending, resolvedKey]);
+
+  const volUsd = siblings.reduce((sum, m) => sum + (m.volumeUsd ?? 0), 0);
+  const vol = formatHighlightVolume(volUsd);
+  const endLabel = book.expiresAt ? `Ends ${formatEndDate(book.expiresAt)}` : null;
+
+  return (
+    <div className="border-t border-[var(--border)] bg-white px-6 pb-5 pt-4">
+      <ProbabilityChart
+        series={series}
+        loading={rangePending}
+        rangeId={rangeId}
+        onRange={setRangeId}
+        onSelect={setSelectedKey}
+        title={multiLeg ? hip4.ticket.outcomeChances : hip4.ticket.yesNoChances}
+        compact
+        bare
+        hideRanges
+      />
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="min-w-0 truncate text-xs font-semibold text-[var(--text-3)]">
+          {vol !== '—' ? <span>{vol} Vol</span> : null}
+          {vol !== '—' && endLabel ? <span> · </span> : null}
+          {endLabel ? <span>{endLabel}</span> : null}
+        </div>
+        <ChartRangePills
+          rangeId={rangeId}
+          onRange={setRangeId}
+          className="mt-0 flex shrink-0 flex-wrap justify-end gap-1"
+        />
+      </div>
+    </div>
+  );
+}
+
+export function EplFeatured({
+  fixture,
+  href,
+  catalog = [],
+  book = null,
+  pager,
+}: {
+  fixture: EplFixture;
+  href: string;
+  catalog?: ListedMarket[];
+  book?: ListedMarket | null;
+  pager?: ReactNode;
+}) {
+  const { hip4 } = useCopy();
+  const desktop = useLgUp();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -94,32 +332,31 @@ export function EplFeatured({ fixture, href }: { fixture: EplFixture; href: stri
       : fixture.venue;
 
   return (
-    <Link
-      to={href}
-      className="card-shadow relative block w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-[var(--border)] bg-white"
-    >
-      <img
-        src={featuredBanner(fixture)}
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
-      />
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 42%, rgba(255,255,255,0.88) 68%, #fff 100%)',
-        }}
-      />
-      <article className="relative z-10 flex min-h-[260px] min-w-0 flex-col justify-end px-3.5 pb-3.5 pt-3 sm:min-h-[300px] sm:px-6 sm:pb-5 sm:pt-4">
+    <div className="card-shadow w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-[var(--border)] bg-white">
+      <div className="relative">
+        <img
+          src={featuredBanner(fixture)}
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+        />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 42%, rgba(255,255,255,0.88) 68%, #fff 100%)',
+          }}
+        />
+        <div className="relative z-10 flex min-h-[260px] min-w-0 flex-col justify-end px-3.5 pb-3.5 pt-3 sm:min-h-[300px] sm:px-6 sm:pb-5 sm:pt-4">
+          <Link to={href} className="flex min-w-0 flex-col">
         {fixture.league.logo ? (
           <img
             src={fixture.league.logo}
-            alt={hip4.featured.epl}
+            alt={fixture.league.name || hip4.featured.epl}
             className="mx-auto mb-1.5 h-[68px] w-[72px] object-contain"
           />
         ) : (
           <p className="mb-1 text-center text-[13px] font-extrabold tracking-wide text-[var(--text)]">
-            {hip4.featured.epl}
+            {fixture.league.name || hip4.featured.epl}
           </p>
         )}
 
@@ -154,7 +391,7 @@ export function EplFeatured({ fixture, href }: { fixture: EplFixture; href: stri
         <div className="mb-3.5 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
           <div className="flex min-w-0 flex-col items-center gap-1.5">
             {fixture.home.logo ? (
-              <img src={fixture.home.logo} alt="" className="h-11 w-11 object-contain sm:h-14 sm:w-14" />
+              <TeamCrest src={fixture.home.logo} />
             ) : (
               <div className="h-11 w-11 rounded-full bg-[var(--bg-2)] sm:h-14 sm:w-14" />
             )}
@@ -169,7 +406,7 @@ export function EplFeatured({ fixture, href }: { fixture: EplFixture; href: stri
           </p>
           <div className="flex min-w-0 flex-col items-center gap-1.5">
             {fixture.away.logo ? (
-              <img src={fixture.away.logo} alt="" className="h-11 w-11 object-contain sm:h-14 sm:w-14" />
+              <TeamCrest src={fixture.away.logo} />
             ) : (
               <div className="h-11 w-11 rounded-full bg-[var(--bg-2)] sm:h-14 sm:w-14" />
             )}
@@ -188,7 +425,12 @@ export function EplFeatured({ fixture, href }: { fixture: EplFixture; href: stri
             {hint}
           </p>
         ) : null}
-      </article>
-    </Link>
+      </Link>
+      {book ? <Hip4BannerOdds book={book} catalog={catalog} /> : null}
+      </div>
+      </div>
+      {book && desktop ? <EplDesktopBook book={book} catalog={catalog} /> : null}
+      {pager ? <div className="flex justify-end px-4 pb-4 sm:px-6">{pager}</div> : null}
+    </div>
   );
 }

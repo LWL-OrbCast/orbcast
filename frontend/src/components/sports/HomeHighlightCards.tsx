@@ -5,6 +5,7 @@ import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/fonts';
 import { softShadow } from '../../theme/shadows';
 import { type ListedMarket } from '../../lib/hip4';
+import { questionVolumeUsd } from '../../lib/marketCatalog';
 import { MarketSymbol } from './MarketSymbol';
 import { useTranslation } from 'react-i18next';
 import { useDisplayCurrency } from '../../providers/CurrencyProvider';
@@ -12,6 +13,7 @@ import { ShimmerBone, useShimmerX } from '../skeleton/ShimmerBone';
 
 type Props = {
   markets: ListedMarket[];
+  catalog?: ListedMarket[];
   loading?: boolean;
   onPressMarket: (market: ListedMarket) => void;
   onExploreAll: () => void;
@@ -45,11 +47,16 @@ function TrendingRowSkeleton({
   );
 }
 
-export function HomeHighlightCards({ markets, loading, onPressMarket, onExploreAll }: Props) {
+export function HomeHighlightCards({
+  markets,
+  catalog = [],
+  loading,
+  onPressMarket,
+  onExploreAll,
+}: Props) {
   const { t } = useTranslation();
   const { formatDisplayVolume, isConverted } = useDisplayCurrency();
   const shimmerX = useShimmerX([-200, 200]);
-  const slots = [0, 1, 2] as const;
 
   const volumeLabel = (usd: number) => {
     if (!Number.isFinite(usd) || usd < 0.5) return '—';
@@ -58,6 +65,8 @@ export function HomeHighlightCards({ markets, loading, onPressMarket, onExploreA
     return isConverted ? `≈ ${v}` : v;
   };
 
+  if (!loading && !markets.length) return null;
+
   return (
     <View style={[styles.card, softShadow]}>
       <View style={styles.head}>
@@ -65,41 +74,29 @@ export function HomeHighlightCards({ markets, loading, onPressMarket, onExploreA
         <Text style={styles.headTitle}>{t('hip4.home.trending')}</Text>
         <Text style={styles.volLabel}>{t('hip4.home.volume')}</Text>
       </View>
-      {slots.map((i) => {
-        if (loading) {
-          return (
+      {loading
+        ? [0, 1, 2].map((i) => (
             <TrendingRowSkeleton
               key={`t-skel-${i}`}
               rank={i + 1}
               lead={i === 0}
               shimmerX={shimmerX}
             />
-          );
-        }
-        const m = markets[i];
-        if (!m) {
-          return (
-            <View key={`t-empty-${i}`} style={styles.item}>
+          ))
+        : markets.map((m, i) => (
+            <Pressable
+              key={m.id}
+              onPress={() => onPressMarket(m)}
+              style={({ pressed }) => [styles.item, pressed && { opacity: 0.85 }]}
+            >
               <Text style={[styles.rank, i === 0 && styles.rankLead]}>{i + 1}</Text>
-              <Text style={styles.emptyLine}>—</Text>
-            </View>
-          );
-        }
-        return (
-          <Pressable
-            key={m.id}
-            onPress={() => onPressMarket(m)}
-            style={({ pressed }) => [styles.item, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={[styles.rank, i === 0 && styles.rankLead]}>{i + 1}</Text>
-            <MarketSymbol market={m} size={28} radius={9} questionLevel />
-            <Text style={styles.itemTitle} numberOfLines={1}>
-              {marketTitle(m)}
-            </Text>
-            <Text style={styles.vol}>{volumeLabel(m.volumeUsd)}</Text>
-          </Pressable>
-        );
-      })}
+              <MarketSymbol market={m} size={28} radius={9} questionLevel />
+              <Text style={styles.itemTitle} numberOfLines={1}>
+                {marketTitle(m)}
+              </Text>
+              <Text style={styles.vol}>{volumeLabel(questionVolumeUsd(catalog, m))}</Text>
+            </Pressable>
+          ))}
       <TouchableOpacity style={styles.cta} onPress={onExploreAll} activeOpacity={0.8}>
         <Text style={styles.ctaLabel}>{t('hip4.home.exploreAll')}</Text>
       </TouchableOpacity>
@@ -157,12 +154,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 13,
     color: colors.text.primary,
-  },
-  emptyLine: {
-    flex: 1,
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    color: colors.text.muted,
   },
   iconBone: {
     width: 28,

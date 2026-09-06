@@ -18,18 +18,21 @@ import { fonts } from '../src/theme/fonts';
 import {
   HIP4_CATALOG_POLL_MS,
   HIP4_CATALOG_STALE_MS,
+  heldOutcomeIdsFromBalances,
   listOutcomes,
   questionTicketMarket,
 } from '../src/lib/hip4';
 import {
-  applyCatalogView,
   applySportChip,
   catalogEmptyKind,
+  catalogListRows,
   featuredCatalogMarkets,
+  hip4ContestForTeams,
   sportOnlyChipForMarket,
   trendingCatalogMarkets,
 } from '../src/lib/marketCatalog';
-import { fetchEplBoard } from '../src/lib/sportsFootball';
+import { useHyperliquidSpotState } from '../src/lib/useHyperliquidAccountStream';
+import { boardFixtures, boardHasLiveFixture, fetchEplBoard } from '../src/lib/sportsFootball';
 import { HomeHeader } from '../src/components/sports/HomeHeader';
 import { SportCategoryRow, type SportChipId } from '../src/components/sports/SportCategoryRow';
 import { FeaturedEventSlider } from '../src/components/sports/FeaturedEventSlider';
@@ -38,6 +41,7 @@ import { HomeHighlightCards } from '../src/components/sports/HomeHighlightCards'
 import { PredictionRow } from '../src/components/sports/PredictionRow';
 import { useAppStore } from '../src/store/appStore';
 import { navigateRouteOnce, pushRouteOnce } from '../src/lib/pushRouteOnce';
+import { registerHomeCatalogReset } from '../src/lib/catalogHomeReset';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 
@@ -48,9 +52,16 @@ export default function HomeScreen() {
   const router = useRouter();
   const focused = useIsFocused();
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const spot = useHyperliquidSpotState();
+  const heldOutcomeIds = useMemo(
+    () => heldOutcomeIdsFromBalances(spot?.balances),
+    [spot?.balances],
+  );
   const [chip, setChip] = useState<SportChipId>('all');
   const [showAllEndingSoon, setShowAllEndingSoon] = useState(false);
   const [pullRefreshing, setPullRefreshing] = useState(false);
+
+  useEffect(() => registerHomeCatalogReset(() => setChip('all')), []);
 
   const queryClient = useQueryClient();
   const query = useQuery({
@@ -62,18 +73,29 @@ export default function HomeScreen() {
 
   const all = query.data ?? [];
   const scoped = useMemo(() => applySportChip(all, chip), [all, chip]);
-  const trending = useMemo(() => trendingCatalogMarkets(all, chip, 3), [all, chip]);
-  const featured = useMemo(() => featuredCatalogMarkets(all, chip, 5), [all, chip]);
-
+  const trending = useMemo(
+    () => trendingCatalogMarkets(all, chip, 3, heldOutcomeIds),
+    [all, chip, heldOutcomeIds],
+  );
+  const featured = useMemo(
+    () => featuredCatalogMarkets(all, chip, 1, heldOutcomeIds),
+    [all, chip, heldOutcomeIds],
+  );
   const eplQuery = useQuery({
     queryKey: ['sports', 'football', 'epl'],
     queryFn: fetchEplBoard,
     staleTime: 45_000,
-    refetchInterval: (q) => (q.state.data?.featured?.live ? 45_000 : 90_000),
+    refetchInterval: (q) => (boardHasLiveFixture(q.state.data) ? 45_000 : 90_000),
     retry: 1,
   });
-  const showEplHero = chip === 'football';
+  const fixtures = useMemo(() => boardFixtures(eplQuery.data), [eplQuery.data]);
+  const eplFixture = eplQuery.data?.configured ? eplQuery.data.featured ?? null : null;
+  const eplBook = useMemo(() => {
+    if (!eplFixture) return null;
+    return hip4ContestForTeams(all, eplFixture.home.name, eplFixture.away.name, heldOutcomeIds);
+  }, [all, eplFixture, heldOutcomeIds]);
   const eplTapTarget =
+    eplBook ??
     featured.find((m) => sportOnlyChipForMarket(m) === 'football') ??
     scoped.find((m) => sportOnlyChipForMarket(m) === 'football') ??
     null;
@@ -91,8 +113,8 @@ export default function HomeScreen() {
   };
 
   const rows = useMemo(
-    () => applyCatalogView(scoped, 'endingSoon'),
-    [scoped],
+    () => catalogListRows(all, 'endingSoon', chip, '', heldOutcomeIds),
+    [all, chip, heldOutcomeIds],
   );
   const visibleRows = useMemo(
     () => (showAllEndingSoon ? rows : rows.slice(0, ENDING_SOON_PREVIEW)),
@@ -130,21 +152,25 @@ export default function HomeScreen() {
           <Text style={styles.seeAll}>{t('hip4.home.seeAll')}</Text>
         </TouchableOpacity>
       </View>
-      {showEplHero ? (
-        <FeaturedMatchCard
-          onPress={() => {
-            const target = eplTapTarget ?? scoped[0];
-            if (!target) return;
-            pushRouteOnce(router, `/market/${target.id}`);
-          }}
-        />
-      ) : featured.length ? (
+      {featured.length ? (
         <FeaturedEventSlider
           markets={featured}
           catalog={all}
+          fixtures={fixtures}
           onPressQuestion={(m) =>
-            pushRouteOnce(router, `/market/${questionTicketMarket(all, m).id}`)
+            pushRouteOnce(router, `/market/${questionTicketMarket(all, m, heldOutcomeIds).id}`)
           }
+          onPressLeg={(m) => pushRouteOnce(router, `/market/${m.id}`)}
+        />
+      ) : chip === 'football' ? (
+        <FeaturedMatchCard
+          catalog={all}
+          book={eplBook}
+          onPress={() => {
+            const target = eplTapTarget ?? scoped[0];
+            if (!target) return;
+            pushRouteOnce(router, `/market/${questionTicketMarket(all, target, heldOutcomeIds).id}`);
+          }}
           onPressLeg={(m) => pushRouteOnce(router, `/market/${m.id}`)}
         />
       ) : query.isPending && !query.data ? null : (
@@ -153,9 +179,10 @@ export default function HomeScreen() {
       <View style={styles.highlightWrap}>
         <HomeHighlightCards
           markets={trending}
+          catalog={all}
           loading={query.isPending && !query.data}
           onPressMarket={(m) =>
-            pushRouteOnce(router, `/market/${questionTicketMarket(all, m).id}`)
+            pushRouteOnce(router, `/market/${questionTicketMarket(all, m, heldOutcomeIds).id}`)
           }
           onExploreAll={() => {
             void Haptics.selectionAsync();
@@ -202,7 +229,11 @@ export default function HomeScreen() {
         renderItem={({ item }) => (
           <PredictionRow
             market={item}
-            onPress={() => pushRouteOnce(router, `/market/${item.id}`)}
+            catalog={all}
+            onPress={() =>
+              pushRouteOnce(router, `/market/${questionTicketMarket(all, item, heldOutcomeIds).id}`)
+            }
+            onPressLeg={(m) => pushRouteOnce(router, `/market/${m.id}`)}
           />
         )}
         ListFooterComponent={

@@ -155,7 +155,7 @@ export default function MarketScreen() {
   const focused = useIsFocused();
   const spotState = useHyperliquidSpotState();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [rangeId, setRangeId] = useState<OutcomeCandleInterval>('15m');
+  const [rangeId, setRangeId] = useState<OutcomeCandleInterval>('1h');
   const [size, setSize] = useState('0');
   const [sizeEditing, setSizeEditing] = useState(false);
   /** Max sell: send every held share at the bid. Do not re-convert a frozen USD through a new mid. */
@@ -267,7 +267,7 @@ export default function MarketScreen() {
   const stream = useOutcomeMarketStream(streamLegs, { onLivePrints, enabled: focused });
 
   const legsKey = streamLegs.map((l) => l.key).join(',');
-  const range = CHART_RANGES.find((r) => r.id === rangeId) ?? CHART_RANGES[2];
+  const range = CHART_RANGES.find((r) => r.id === rangeId) ?? CHART_RANGES.find((r) => r.id === '1h') ?? CHART_RANGES[0];
 
   const candleQuery = useQuery({
     queryKey: ['hip4', 'candles', legsKey, range.interval],

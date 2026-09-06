@@ -17,11 +17,16 @@ import { RollingNumber } from '../RollingNumber';
 import { ShimmerBone, useShimmerX } from '../skeleton/ShimmerBone';
 import { useTranslation } from 'react-i18next';
 import {
+  boardFixtures,
   fetchEplBoard,
   formatFootballEvent,
   formatKickoff,
   type FootballFixture,
 } from '../../lib/sportsFootball';
+import { fixtureForMarket } from '../../lib/marketCatalog';
+import { questionSiblings, type ListedMarket } from '../../lib/hip4';
+import { LEG_PALETTE, OddsPill } from './OddsPill';
+import { TeamCrest } from './TeamCrest';
 
 const BANNER_STUB = require('../../../assets/images/symbols/featured-city-madrid.webp');
 const BANNER_STADIUM = require('../../../assets/images/symbols/featured-banner.webp');
@@ -36,6 +41,9 @@ const LIVE_WINDOW_MS = 90 * 60 * 1000;
 
 type Props = {
   onPress: () => void;
+  catalog?: ListedMarket[];
+  book?: ListedMarket | null;
+  onPressLeg?: (market: ListedMarket) => void;
 };
 
 function nextWindow(now: number): { kickoffAt: number; liveUntil: number } {
@@ -201,7 +209,83 @@ function FixtureStatus({ fixture, now }: { fixture: FootballFixture; now: number
   return <StatusPill label={fixture.statusLong || fixture.status} />;
 }
 
-function EplCard({ fixture, onPress }: { fixture: FootballFixture; onPress: () => void }) {
+function Hip4BannerOdds({
+  book,
+  catalog,
+  onPressLeg,
+}: {
+  book: ListedMarket;
+  catalog: ListedMarket[];
+  onPressLeg?: (market: ListedMarket) => void;
+}) {
+  const { t } = useTranslation();
+  const siblings = useMemo(
+    () => (catalog.length ? questionSiblings(catalog, book) : [book]),
+    [book, catalog],
+  );
+  const multiLeg = siblings.length > 1;
+  if (multiLeg) {
+    return (
+      <View style={styles.oddsRow} pointerEvents="box-none">
+        {siblings.map((leg, i) => {
+          const px = leg.sides.find((s) => s.side === 0)?.probability ?? null;
+          return (
+            <View
+              key={leg.id}
+              style={[styles.oddsCell, siblings.length === 3 ? styles.oddsCell3 : null]}
+            >
+              <OddsPill
+                label={leg.legLabel || t('hip4.yes')}
+                probability={px}
+                accent={LEG_PALETTE[i % LEG_PALETTE.length]}
+                compact
+                onPress={onPressLeg ? () => onPressLeg(leg) : undefined}
+              />
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
+  const yes = book.sides[0];
+  const no = book.sides[1];
+  return (
+    <View style={styles.oddsYesNo} pointerEvents="box-none">
+      <OddsPill
+        label={yes?.name ?? t('hip4.yes')}
+        probability={yes?.probability ?? null}
+        variant="yes"
+        compact
+        onPress={onPressLeg ? () => onPressLeg(book) : undefined}
+      />
+      {no ? (
+        <OddsPill
+          label={no.name ?? t('hip4.no')}
+          probability={no.probability ?? null}
+          variant="no"
+          compact
+          onPress={onPressLeg ? () => onPressLeg(book) : undefined}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+export function FootballFeaturedCard({
+  fixture,
+  onPress,
+  book,
+  catalog,
+  onPressLeg,
+  reserveDots,
+}: {
+  fixture: FootballFixture;
+  onPress: () => void;
+  book?: ListedMarket | null;
+  catalog?: ListedMarket[];
+  onPressLeg?: (market: ListedMarket) => void;
+  reserveDots?: boolean;
+}) {
   const { t } = useTranslation();
   const [now, setNow] = useState(() => Date.now());
 
@@ -220,7 +304,14 @@ function EplCard({ fixture, onPress }: { fixture: FootballFixture; onPress: () =
       : fixture.venue;
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.wrap, pressed && { opacity: 0.94 }]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.wrap,
+        reserveDots && styles.wrapDots,
+        pressed && { opacity: 0.94 },
+      ]}
+    >
       <CardChrome banner={featuredBanner(fixture)}>
         {leagueLogo ? (
           <Image
@@ -228,22 +319,22 @@ function EplCard({ fixture, onPress }: { fixture: FootballFixture; onPress: () =
             style={styles.leagueLogo}
             contentFit="contain"
             cachePolicy="memory-disk"
-            accessibilityLabel={t('hip4.featured.epl')}
+            accessibilityLabel={fixture.league.name || t('hip4.featured.epl')}
           />
         ) : (
-          <Text style={styles.kicker}>{t('hip4.featured.epl')}</Text>
+          <Text style={styles.kicker}>{fixture.league.name || t('hip4.featured.epl')}</Text>
         )}
         <FixtureStatus fixture={fixture} now={now} />
 
         <View style={styles.teams}>
+          <View style={styles.midAbs} pointerEvents="none">
+            <Text style={showScore && mid ? styles.score : styles.vs}>
+              {showScore && mid ? mid : t('hip4.featured.vs')}
+            </Text>
+          </View>
           <View style={styles.team}>
             {fixture.home.logo ? (
-              <Image
-                source={{ uri: fixture.home.logo }}
-                style={styles.crest}
-                contentFit="contain"
-                cachePolicy="memory-disk"
-              />
+              <TeamCrest uri={fixture.home.logo} />
             ) : (
               <View style={styles.crestFallback} />
             )}
@@ -251,17 +342,10 @@ function EplCard({ fixture, onPress }: { fixture: FootballFixture; onPress: () =
               {fixture.home.name}
             </Text>
           </View>
-          <Text style={showScore && mid ? styles.score : styles.vs}>
-            {showScore && mid ? mid : t('hip4.featured.vs')}
-          </Text>
+          <View style={styles.midSpacer} />
           <View style={styles.team}>
             {fixture.away.logo ? (
-              <Image
-                source={{ uri: fixture.away.logo }}
-                style={styles.crest}
-                contentFit="contain"
-                cachePolicy="memory-disk"
-              />
+              <TeamCrest uri={fixture.away.logo} />
             ) : (
               <View style={styles.crestFallback} />
             )}
@@ -283,6 +367,9 @@ function EplCard({ fixture, onPress }: { fixture: FootballFixture; onPress: () =
           <Text style={styles.kickoffHint} numberOfLines={1}>
             {kickoffHint}
           </Text>
+        ) : null}
+        {book ? (
+          <Hip4BannerOdds book={book} catalog={catalog ?? []} onPressLeg={onPressLeg} />
         ) : null}
       </CardChrome>
     </Pressable>
@@ -349,13 +436,16 @@ function StubCard({ onPress }: { onPress: () => void }) {
         )}
 
         <View style={styles.teams}>
+          <View style={styles.midAbs} pointerEvents="none">
+            <Text style={styles.vs}>{t('hip4.featured.vs')}</Text>
+          </View>
           <View style={styles.team}>
             <Image source={MADRID} style={styles.crest} contentFit="contain" />
             <Text style={styles.teamName} numberOfLines={1}>
               {t('hip4.featured.madrid')}
             </Text>
           </View>
-          <Text style={styles.vs}>{t('hip4.featured.vs')}</Text>
+          <View style={styles.midSpacer} />
           <View style={styles.team}>
             <Image source={CITY} style={styles.crest} contentFit="contain" />
             <Text style={styles.teamName} numberOfLines={1}>
@@ -378,12 +468,15 @@ function StubCard({ onPress }: { onPress: () => void }) {
   );
 }
 
-export function FeaturedMatchCard({ onPress }: Props) {
+export function FeaturedMatchCard({ onPress, catalog = [], book = null, onPressLeg }: Props) {
   const query = useQuery({
     queryKey: ['sports', 'football', 'epl'],
     queryFn: fetchEplBoard,
     staleTime: 45_000,
-    refetchInterval: (q) => (q.state.data?.featured?.live ? 45_000 : 90_000),
+    refetchInterval: (q) =>
+      (q.state.data?.matches ?? []).some((f) => f.live) || q.state.data?.featured?.live
+        ? 45_000
+        : 90_000,
     retry: 1,
   });
 
@@ -392,8 +485,19 @@ export function FeaturedMatchCard({ onPress }: Props) {
   }
 
   const board = query.data;
-  if (board?.configured && board.featured) {
-    return <EplCard fixture={board.featured} onPress={onPress} />;
+  const fixtures = boardFixtures(board);
+  const fixture =
+    (book ? fixtureForMarket(fixtures, book) : null) ?? board?.featured ?? fixtures[0] ?? null;
+  if (board?.configured && fixture) {
+    return (
+      <FootballFeaturedCard
+        fixture={fixture}
+        onPress={onPress}
+        book={book}
+        catalog={catalog}
+        onPressLeg={onPressLeg}
+      />
+    );
   }
   if (board?.configured) {
     return <EmptyEplCard logo={board.league.logo} onPress={onPress} />;
@@ -402,8 +506,11 @@ export function FeaturedMatchCard({ onPress }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 8 },
+  wrap: { width: '100%', alignSelf: 'stretch', marginBottom: 8 },
+  wrapDots: { paddingBottom: 8 },
   card: {
+    width: '100%',
+    alignSelf: 'stretch',
     borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: colors.background.card,
@@ -418,6 +525,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   body: {
+    width: '100%',
+    alignSelf: 'stretch',
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 14,
@@ -507,12 +616,34 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   teams: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    alignSelf: 'stretch',
+    width: '100%',
     marginBottom: 14,
   },
-  team: { flex: 1, alignItems: 'center', gap: 6 },
+  team: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  midAbs: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  midSpacer: {
+    width: 52,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   crest: { width: 44, height: 44 },
   crestFallback: {
     width: 44,
@@ -524,18 +655,20 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 13,
     color: colors.text.primary,
+    textAlign: 'center',
+    width: '100%',
   },
   vs: {
     fontFamily: fonts.extraBold,
     fontSize: 16,
     color: colors.text.primary,
-    marginHorizontal: 8,
+    textAlign: 'center',
   },
   score: {
     fontFamily: fonts.extraBold,
     fontSize: 22,
     color: colors.text.primary,
-    marginHorizontal: 8,
+    textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
   events: {
@@ -556,6 +689,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     minHeight: 36,
     textAlignVertical: 'center',
+  },
+  oddsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  oddsCell: {
+    width: '47%',
+    flexGrow: 1,
+  },
+  oddsCell3: {
+    width: '31%',
+    flexGrow: 1,
+  },
+  oddsYesNo: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
   },
   emptyCopy: {
     fontFamily: fonts.semibold,

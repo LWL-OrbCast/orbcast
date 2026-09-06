@@ -1,32 +1,52 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import type { ListedMarket } from '../../lib/hip4';
-import { impliedPercent } from '../../lib/hip4';
+import {
+  displayFeaturedHeading,
+  questionCatalogLegs,
+  type ListedMarket,
+} from '../../lib/hip4';
 import { colors } from '../../theme/colors';
 import { MarketSymbol } from './MarketSymbol';
 import { fonts } from '../../theme/fonts';
 import { softShadow } from '../../theme/shadows';
 import { useTranslation } from 'react-i18next';
 import { useDisplayCurrency } from '../../providers/CurrencyProvider';
+import { LEG_PALETTE, OddsPill } from './OddsPill';
 
 type Props = {
   market: ListedMarket;
+  catalog?: ListedMarket[];
   onPress: () => void;
+  onPressLeg?: (market: ListedMarket) => void;
 };
 
-export const PredictionRow = React.memo(function PredictionRow({ market, onPress }: Props) {
+export const PredictionRow = React.memo(function PredictionRow({
+  market,
+  catalog = [],
+  onPress,
+  onPressLeg,
+}: Props) {
   const { t } = useTranslation();
   const { formatDisplayVolume, isConverted } = useDisplayCurrency();
   const yes = market.sides[0];
-  const lead = yes?.probability ?? 0.5;
-  const leadPct = impliedPercent(yes?.probability ?? null);
-  const grouped = market.multiOutcome;
-  const heading = grouped && market.questionName ? market.questionName : market.title;
-  const sub = grouped ? market.legLabel : market.subtitle;
-  const leadName = grouped ? market.legLabel : (yes?.name ?? t('hip4.yes'));
-  const rawVol = formatDisplayVolume(market.volumeUsd);
+  const no = market.sides[1];
+  const siblings = useMemo(
+    () => (catalog.length ? questionCatalogLegs(catalog, market) : [market]),
+    [catalog, market],
+  );
+  const multiLeg = siblings.length > 1;
+  const heading = displayFeaturedHeading(market);
+  const sub = multiLeg
+    ? null
+    : market.subtitle && market.subtitle !== heading
+      ? market.subtitle
+      : null;
+  const volUsd = multiLeg
+    ? siblings.reduce((sum, m) => sum + (m.volumeUsd ?? 0), 0)
+    : (market.volumeUsd ?? 0);
+  const rawVol = formatDisplayVolume(volUsd);
   const amount =
-    Number.isFinite(market.volumeUsd) && market.volumeUsd >= 0.5 && rawVol !== '--'
+    Number.isFinite(volUsd) && volUsd >= 0.5 && rawVol !== '--'
       ? isConverted
         ? `≈ ${rawVol}`
         : rawVol
@@ -52,25 +72,58 @@ export const PredictionRow = React.memo(function PredictionRow({ market, onPress
         {vol ? <Text style={styles.vol}>{vol}</Text> : null}
       </View>
       <View style={styles.body}>
-        <MarketSymbol market={market} size={44} radius={14} />
+        <MarketSymbol market={market} size={44} radius={14} questionLevel={multiLeg} />
         <View style={styles.mid}>
           <Text style={styles.title} numberOfLines={2}>
             {heading}
           </Text>
-          <Text style={styles.sub} numberOfLines={1}>
-            {sub}
-          </Text>
-        </View>
-        <View style={styles.pctWrap}>
-          <Text style={styles.pct}>{leadPct}</Text>
-          <Text style={styles.pctSide} numberOfLines={1}>
-            {leadName}
-          </Text>
-          <View style={styles.miniBar}>
-            <View style={[styles.miniFill, { width: `${Math.round(Math.min(1, Math.max(0, lead)) * 100)}%` }]} />
-          </View>
+          {sub ? (
+            <Text style={styles.sub} numberOfLines={1}>
+              {sub}
+            </Text>
+          ) : null}
         </View>
       </View>
+      {multiLeg ? (
+        <View style={styles.stamps} pointerEvents="box-none">
+          {siblings.map((leg, i) => {
+            const px = leg.sides.find((s) => s.side === 0)?.probability ?? null;
+            return (
+              <View
+                key={leg.id}
+                style={[styles.stamp, siblings.length === 3 ? styles.stampTriple : null]}
+              >
+                <OddsPill
+                  label={leg.legLabel || t('hip4.yes')}
+                  probability={px}
+                  accent={LEG_PALETTE[i % LEG_PALETTE.length]}
+                  compact
+                  onPress={onPressLeg ? () => onPressLeg(leg) : undefined}
+                />
+              </View>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.yesNo} pointerEvents="box-none">
+          <OddsPill
+            label={yes?.name ?? t('hip4.yes')}
+            probability={yes?.probability ?? null}
+            variant="yes"
+            compact
+            onPress={onPress}
+          />
+          {no ? (
+            <OddsPill
+              label={no.name ?? t('hip4.no')}
+              probability={no.probability ?? null}
+              variant="no"
+              compact
+              onPress={onPress}
+            />
+          ) : null}
+        </View>
+      )}
     </Pressable>
   );
 });
@@ -131,29 +184,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text.tertiary,
   },
-  pctWrap: { width: 78, alignItems: 'flex-end' },
-  pct: {
-    fontFamily: fonts.extraBold,
-    fontSize: 16,
-    color: colors.accent.goldDark,
+  stamps: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
   },
-  pctSide: {
-    fontFamily: fonts.semibold,
-    fontSize: 10,
-    color: colors.text.secondary,
-    marginTop: 1,
+  stamp: {
+    width: '47%',
+    flexGrow: 1,
   },
-  miniBar: {
-    marginTop: 6,
-    width: 64,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: colors.background.tertiary,
-    overflow: 'hidden',
+  stampTriple: {
+    width: '31%',
+    flexGrow: 1,
   },
-  miniFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: colors.accent.gold,
+  yesNo: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
   },
 });

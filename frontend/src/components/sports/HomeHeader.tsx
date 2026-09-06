@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { BRAND_NAME } from '../../lib/brand';
 import { usePositionActivity } from '../../hooks/usePositionActivity';
 import { navigateRouteOnce } from '../../lib/pushRouteOnce';
+import { resetHomeCatalogToAll } from '../../lib/catalogHomeReset';
 import { CatalogSearchModal } from './CatalogSearchModal';
 
 const MARK = require('../../../assets/images/orbcast-logo-circle.png');
@@ -38,7 +39,18 @@ export function HomeHeader({ onPressBell, onPressAvatar, kicker }: Props) {
 
   return (
     <View style={styles.row}>
-      <View style={styles.brand}>
+      <TouchableOpacity
+        style={styles.brand}
+        onPress={() => {
+          setSearchOpen(false);
+          resetHomeCatalogToAll();
+          navigateRouteOnce(router, '/');
+        }}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={BRAND_NAME}
+        hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+      >
         <Image source={MARK} style={styles.mark} accessibilityLabel={BRAND_NAME} />
         <View>
           <Text style={styles.wordmark} numberOfLines={1}>
@@ -46,7 +58,7 @@ export function HomeHeader({ onPressBell, onPressAvatar, kicker }: Props) {
           </Text>
           <Text style={styles.sub}>{kickerLabel}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
       <View style={styles.actions}>
         <TouchableOpacity
           style={styles.iconBtn}

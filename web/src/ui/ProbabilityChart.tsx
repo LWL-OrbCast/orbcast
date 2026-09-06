@@ -117,8 +117,39 @@ type Props = {
   title?: string;
   compact?: boolean;
   bare?: boolean;
+  hideRanges?: boolean;
   className?: string;
 };
+
+export function ChartRangePills({
+  rangeId,
+  onRange,
+  className,
+}: {
+  rangeId: WebChartRangeId;
+  onRange: (id: WebChartRangeId) => void;
+  className?: string;
+}) {
+  return (
+    <div className={className ?? 'mt-2 flex w-full min-w-0 flex-wrap justify-end gap-1 sm:mt-3'}>
+      {WEB_CHART_RANGES.map((r) => {
+        const on = r.id === rangeId;
+        return (
+          <button
+            key={r.id}
+            type="button"
+            onClick={() => onRange(r.id)}
+            className={`rounded-lg px-1.5 py-1 text-[10px] font-extrabold sm:px-2 sm:text-[11px] ${
+              on ? 'bg-[var(--ink)] text-white' : 'text-[var(--text-3)] hover:bg-[var(--bg-2)] hover:text-[var(--text)]'
+            }`}
+          >
+            {r.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function ProbabilityChart({
   series,
@@ -129,6 +160,7 @@ export function ProbabilityChart({
   title,
   compact = false,
   bare = false,
+  hideRanges = false,
   className,
 }: Props) {
   const plotRef = useRef<HTMLDivElement>(null);
@@ -379,23 +411,7 @@ export function ProbabilityChart({
         <span>{formatAxis(tMax, spanMs)}</span>
       </div>
 
-      <div className="mt-2 flex w-full min-w-0 flex-wrap justify-end gap-1 sm:mt-3">
-        {WEB_CHART_RANGES.map((r) => {
-          const on = r.id === rangeId;
-          return (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => onRange(r.id)}
-              className={`rounded-lg px-1.5 py-1 text-[10px] font-extrabold sm:px-2 sm:text-[11px] ${
-                on ? 'bg-[var(--ink)] text-white' : 'text-[var(--text-3)] hover:bg-[var(--bg-2)] hover:text-[var(--text)]'
-              }`}
-            >
-              {r.label}
-            </button>
-          );
-        })}
-      </div>
+      {hideRanges ? null : <ChartRangePills rangeId={rangeId} onRange={onRange} />}
     </div>
   );
 }

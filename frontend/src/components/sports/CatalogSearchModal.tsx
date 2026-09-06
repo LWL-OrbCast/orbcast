@@ -20,12 +20,14 @@ import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/fonts';
 import {
   displayListedTitle,
+  heldOutcomeIdsFromBalances,
   HIP4_CATALOG_STALE_MS,
   impliedPercent,
   listOutcomes,
-  topMarketsByVolume,
+  questionTicketMarket,
 } from '../../lib/hip4';
-import { applySearch } from '../../lib/marketCatalog';
+import { searchCatalogRows, trendingCatalogMarkets } from '../../lib/marketCatalog';
+import { useHyperliquidSpotState } from '../../lib/useHyperliquidAccountStream';
 import { pushRouteOnce } from '../../lib/pushRouteOnce';
 import { MarketSymbol } from './MarketSymbol';
 
@@ -49,18 +51,23 @@ export function CatalogSearchModal({ visible, onClose }: Props) {
     enabled: visible,
   });
   const all = catalog.data ?? [];
+  const spot = useHyperliquidSpotState();
+  const heldOutcomeIds = useMemo(
+    () => heldOutcomeIdsFromBalances(spot?.balances),
+    [spot?.balances],
+  );
 
   const rows = useMemo(() => {
     const needle = query.trim();
-    if (!needle) return topMarketsByVolume(all, PREVIEW);
-    return applySearch(all, needle).slice(0, PREVIEW);
-  }, [all, query]);
+    if (!needle) return trendingCatalogMarkets(all, 'all', PREVIEW, heldOutcomeIds);
+    return searchCatalogRows(all, needle, heldOutcomeIds).slice(0, PREVIEW);
+  }, [all, query, heldOutcomeIds]);
 
   const totalMatch = useMemo(() => {
     const needle = query.trim();
     if (!needle) return all.length;
-    return applySearch(all, needle).length;
-  }, [all, query]);
+    return searchCatalogRows(all, needle, heldOutcomeIds).length;
+  }, [all, query, heldOutcomeIds]);
 
   useEffect(() => {
     if (!visible) {
@@ -146,7 +153,7 @@ export function CatalogSearchModal({ visible, onClose }: Props) {
                   <TouchableOpacity
                     key={m.id}
                     style={styles.row}
-                    onPress={() => goMarket(m.id)}
+                    onPress={() => goMarket(questionTicketMarket(all, m, heldOutcomeIds).id)}
                     activeOpacity={0.8}
                   >
                     <MarketSymbol market={m} size={36} radius={12} />

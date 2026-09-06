@@ -1,38 +1,61 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   HIP4_CATALOG_POLL_MS,
   HIP4_CATALOG_STALE_MS,
+  displayFeaturedHeading,
   formatHighlightVolume,
   formatMarketVolumeAmount,
+  heldOutcomeIdsFromBalances,
   impliedPercent,
+  isOtherOutcomeLeg,
   listOutcomes,
+  questionCatalogLegs,
   questionTicketMarket,
+  topQuestionLegsByChance,
   type ListedMarket,
 } from '@hip4';
 import {
-  applyCatalogView,
-  applySearch,
   applySportChip,
   catalogEmptyKind,
+  catalogListRows,
   featuredCatalogMarkets,
-  isEconomicsCatalogMarket,
+  hip4ContestForTeams,
+  isFootballContestMarket,
+  marketMatchesFixture,
+  sameContestEvent,
+  questionVolumeUsd,
   sportOnlyChipForMarket,
   trendingCatalogMarkets,
   type MarketCatalogView,
   type SportChipId,
 } from '@hip4/catalog';
-import { fetchEplBoard, isTodaysEplFixture } from '../lib/api';
+import { useWebAuth } from '../lib/auth';
+import { useSpotAccount } from '../lib/useSpotAccount';
+import { catalogLegChipStyle } from './outcomeColors';
+import {
+  boardFixtures,
+  boardHasLiveFixture,
+  fetchEplBoard,
+  footballChromeFixture,
+  type EplFixture,
+} from '../lib/api';
+import { useFeaturedAutoplay } from '@hip4/autoplay';
 import { interpolate, useCopy } from '../lib/copy';
 import { useCatalogUi } from './catalogUi';
 import { EplFeatured } from './EplFeatured';
-import { FeaturedEvent } from './FeaturedEvent';
+import { FeaturedDots, FeaturedEvent } from './FeaturedEvent';
 import { looksLikeScheduleSubtitle, formatHms } from './formatTime';
 import { IconChevron, IconFlame } from './icons';
 import { MarketSymbol } from './MarketSymbol';
 import { RollingNumber } from './RollingNumber';
-import { HomeLiveSkeleton, MarketGridSkeleton, SidebarListSkeleton } from './skeleton';
+import {
+  FeaturedEventSkeleton,
+  HomeLiveSkeleton,
+  MarketGridSkeleton,
+  SidebarListSkeleton,
+} from './skeleton';
 import { SPORT_CHIPS } from './SportCategoryBar';
 
 export function useCatalog() {
@@ -44,60 +67,113 @@ export function useCatalog() {
   });
 }
 
-export function MarketRow({ market }: { market: ListedMarket }) {
+export function MarketRow({
+  market,
+  catalog = [],
+  heldOutcomeIds,
+}: {
+  market: ListedMarket;
+  catalog?: ListedMarket[];
+  heldOutcomeIds?: Iterable<number> | null;
+}) {
   const { hip4 } = useCopy();
+  const navigate = useNavigate();
   const yes = market.sides[0];
-  const heading = market.multiOutcome && market.questionName ? market.questionName : market.title;
-  const sub = market.multiOutcome
-    ? market.legLabel
-    : market.subtitle &&
-        !isEconomicsCatalogMarket(market) &&
-        !looksLikeScheduleSubtitle(market.subtitle, market.expiresAt)
+  const no = market.sides[1];
+  const siblings = catalog.length ? questionCatalogLegs(catalog, market) : [market];
+  const multiLeg = siblings.length > 1;
+  const shownLegs = multiLeg ? topQuestionLegsByChance(siblings, 2) : siblings;
+  const extraLegs = Math.max(0, siblings.length - shownLegs.length);
+  const heading = displayFeaturedHeading(market);
+  const sub =
+    !multiLeg &&
+    market.subtitle &&
+    market.subtitle !== heading &&
+    !looksLikeScheduleSubtitle(market.subtitle, market.expiresAt)
       ? market.subtitle
       : '';
-  const leadName = market.multiOutcome ? market.legLabel : (yes?.name ?? hip4.yes);
-  const vol = formatMarketVolumeAmount(market.volumeUsd);
-  const lead = yes?.probability ?? 0.5;
+  const volUsd = multiLeg
+    ? siblings.reduce((sum, m) => sum + (m.volumeUsd ?? 0), 0)
+    : (market.volumeUsd ?? 0);
+  const vol = formatMarketVolumeAmount(volUsd);
+  const href = `/market/${questionTicketMarket(catalog, market, heldOutcomeIds).id}`;
   return (
-    <Link
-      to={`/market/${market.id}`}
-      className="card-shadow flex min-w-0 flex-col rounded-[18px] border border-[var(--border)] bg-white p-3.5 hover:border-[var(--accent)]"
-    >
-      <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide">
-        {market.status === 'live' ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--live-bg)] px-2 py-0.5 text-[var(--live-dark)]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--live)]" />
-            {hip4.status.live}
-          </span>
-        ) : (
-          <span className="text-[var(--text-3)]">
-            {market.status === 'upcoming' ? hip4.status.upcoming : hip4.status.settled}
-          </span>
-        )}
-        {vol ? (
-          <span className="font-medium normal-case text-[var(--text-3)]">
-            {interpolate(hip4.row.volume, { amount: vol })}
-          </span>
-        ) : null}
-      </div>
-      <div className="flex min-w-0 items-center gap-3.5">
-        <MarketSymbol market={market} size={44} className="rounded-[14px]" />
-        <div className="min-w-0 flex-1">
-          <div className="line-clamp-2 text-sm font-bold leading-snug">{heading}</div>
-          {sub ? <div className="truncate text-xs text-[var(--text-3)]">{sub}</div> : null}
+    <article className="card-shadow flex h-full min-w-0 flex-col rounded-[18px] border border-[var(--border)] bg-white p-3 hover:border-[var(--accent)]">
+      <Link to={href} className="min-w-0">
+        <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide">
+          {market.status === 'live' ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--live-bg)] px-2 py-0.5 text-[var(--live-dark)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--live)]" />
+              {hip4.status.live}
+            </span>
+          ) : (
+            <span className="text-[var(--text-3)]">
+              {market.status === 'upcoming' ? hip4.status.upcoming : hip4.status.settled}
+            </span>
+          )}
+          {vol ? (
+            <span className="font-medium normal-case text-[var(--text-3)]">
+              {interpolate(hip4.row.volume, { amount: vol })}
+            </span>
+          ) : null}
+          {extraLegs > 0 ? (
+            <span className="font-medium normal-case text-[var(--text-3)]">
+              {interpolate(hip4.row.moreOutcomes, { count: extraLegs })}
+            </span>
+          ) : null}
         </div>
-        <div className="w-[72px] shrink-0 text-right">
-        <div className="text-lg font-extrabold text-[var(--accent-dark)]">{impliedPercent(yes?.probability ?? null)}</div>
-        <div className="truncate text-[10px] font-semibold text-[var(--text-2)]">{leadName}</div>
-        <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--bg-2)]">
-          <div
-            className="h-full rounded-full bg-[var(--accent)]"
-            style={{ width: `${Math.round(Math.min(1, Math.max(0, lead)) * 100)}%` }}
+        <div className="flex min-w-0 items-center gap-3.5">
+          <MarketSymbol
+            market={market}
+            size={36}
+            questionLevel={multiLeg}
+            className="rounded-[12px]"
           />
+          <div className="min-w-0 flex-1">
+            <div className="line-clamp-2 text-sm font-bold leading-snug">{heading}</div>
+            {sub ? <div className="truncate text-xs text-[var(--text-3)]">{sub}</div> : null}
+          </div>
         </div>
+      </Link>
+      {multiLeg ? (
+        <div className="mt-auto grid min-w-0 grid-cols-2 gap-1.5 pt-2.5">
+          {shownLegs.map((m) => {
+            const i = siblings.findIndex((s) => s.id === m.id);
+            const px = m.sides.find((s) => s.side === 0)?.probability ?? null;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => navigate(`/market/${m.id}`)}
+                className="btn-catalog min-w-0 truncate px-1.5 py-1 text-[13px] font-semibold leading-tight"
+                style={catalogLegChipStyle(isOtherOutcomeLeg(m), i < 0 ? 0 : i)}
+              >
+                {m.legLabel || hip4.yes} {impliedPercent(px)}
+              </button>
+            );
+          })}
         </div>
-      </div>
-    </Link>
+      ) : (
+        <div className="mt-auto grid min-w-0 grid-cols-2 gap-1.5 pt-2.5">
+          <button
+            type="button"
+            onClick={() => navigate(href)}
+            className="btn-catalog btn-catalog-yes min-w-0 truncate px-1.5 py-1 text-[13px] font-semibold leading-tight"
+          >
+            {yes?.name ?? hip4.yes} {impliedPercent(yes?.probability ?? null)}
+          </button>
+          {no ? (
+            <button
+              type="button"
+              onClick={() => navigate(href)}
+              className="btn-catalog btn-catalog-no min-w-0 truncate px-1.5 py-1 text-[13px] font-semibold leading-tight"
+            >
+              {no.name ?? hip4.no} {impliedPercent(no.probability ?? null)}
+            </button>
+          ) : null}
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -139,17 +215,23 @@ export function CatalogFilters(props: {
   );
 }
 
+export function useHeldOutcomeIds() {
+  const { address, authenticated } = useWebAuth();
+  const spot = useSpotAccount(address, authenticated);
+  return useMemo(() => heldOutcomeIdsFromBalances(spot.balances), [spot.balances]);
+}
+
 export function useFilteredCatalog(
   all: ListedMarket[],
   view: MarketCatalogView,
   chip: SportChipId,
   query: string,
+  heldOutcomeIds?: Iterable<number> | null,
 ) {
-  return useMemo(() => {
-    let next = applyCatalogView(all, view);
-    next = applySportChip(next, chip);
-    return applySearch(next, query);
-  }, [all, view, chip, query]);
+  return useMemo(
+    () => catalogListRows(all, view, chip, query, heldOutcomeIds),
+    [all, view, chip, query, heldOutcomeIds],
+  );
 }
 
 function SidebarList({
@@ -178,11 +260,13 @@ function SidebarList({
 function TrendingSidebar({
   markets,
   catalog,
+  heldOutcomeIds,
   loading,
   sport,
 }: {
   markets: ListedMarket[];
   catalog: ListedMarket[];
+  heldOutcomeIds?: Iterable<number> | null;
   loading?: boolean;
   sport: SportChipId;
 }) {
@@ -201,12 +285,12 @@ function TrendingSidebar({
     >
       <ol>
         {markets.map((m, i) => {
-          const vol = formatHighlightVolume(m.volumeUsd);
+          const vol = formatHighlightVolume(questionVolumeUsd(catalog, m));
           const heading = m.multiOutcome && m.questionName ? m.questionName : m.title;
           return (
             <li key={m.id}>
               <Link
-                to={`/market/${questionTicketMarket(catalog, m).id}`}
+                to={`/market/${questionTicketMarket(catalog, m, heldOutcomeIds).id}`}
                 className="flex min-w-0 items-center gap-2 px-3 py-3 hover:bg-[var(--bg)] sm:gap-3 sm:px-4"
               >
                 <span className="w-5 shrink-0 text-sm font-extrabold text-[var(--text-3)]">{i + 1}</span>
@@ -228,10 +312,14 @@ function TrendingSidebar({
 
 function EndingSoonSidebar({
   markets,
+  catalog = [],
+  heldOutcomeIds,
   loading,
   sport,
 }: {
   markets: ListedMarket[];
+  catalog?: ListedMarket[];
+  heldOutcomeIds?: Iterable<number> | null;
   loading?: boolean;
   sport: SportChipId;
 }) {
@@ -261,12 +349,12 @@ function EndingSoonSidebar({
             m.expiresAt != null && m.expiresAt > now
               ? Math.max(0, Math.ceil((m.expiresAt - now) / 1000))
               : null;
-          const vol = formatHighlightVolume(m.volumeUsd);
+          const vol = formatHighlightVolume(questionVolumeUsd(catalog, m));
           const yes = m.sides[0];
           return (
             <li key={m.id}>
               <Link
-                to={`/market/${m.id}`}
+                to={`/market/${questionTicketMarket(catalog, m, heldOutcomeIds).id}`}
                 className="flex min-w-0 items-center gap-3 px-3 py-3 hover:bg-[var(--bg)] sm:px-4"
               >
                 <MarketSymbol market={m} size={36} questionLevel className="rounded-xl" />
@@ -307,55 +395,182 @@ function EndingSoonSidebar({
   );
 }
 
+type FeaturedSlide =
+  | { key: string; kind: 'football'; fixture: EplFixture; book: ListedMarket | null; href: string }
+  | { key: string; kind: 'generic'; market: ListedMarket };
+
+function HomeFeatured({
+  pinFixture,
+  pinHref,
+  pinBook,
+  markets,
+  fixtures,
+  catalog,
+  heldOutcomeIds,
+  loading,
+}: {
+  pinFixture: EplFixture | null;
+  pinHref: string;
+  pinBook: ListedMarket | null;
+  markets: ListedMarket[];
+  fixtures: EplFixture[];
+  catalog: ListedMarket[];
+  heldOutcomeIds?: Iterable<number> | null;
+  loading: boolean;
+}) {
+  const slides = useMemo<FeaturedSlide[]>(() => {
+    const out: FeaturedSlide[] = [];
+    const addedBooks: ListedMarket[] = [];
+    const seenFixtureIds = new Set<number>();
+    const alreadyShown = (m: ListedMarket, fx: EplFixture | null) => {
+      if (pinFixture && marketMatchesFixture(m, pinFixture.home.name, pinFixture.away.name)) {
+        return true;
+      }
+      if (fx && fx.fixtureId > 0 && seenFixtureIds.has(fx.fixtureId)) return true;
+      return addedBooks.some((row) => sameContestEvent(row, m));
+    };
+    if (pinFixture) {
+      if (pinFixture.fixtureId > 0) seenFixtureIds.add(pinFixture.fixtureId);
+      if (pinBook) addedBooks.push(pinBook);
+      out.push({
+        key: `fx-${pinFixture.fixtureId}`,
+        kind: 'football',
+        fixture: pinFixture,
+        book: pinBook,
+        href: pinBook
+          ? `/market/${questionTicketMarket(catalog, pinBook, heldOutcomeIds).id}`
+          : pinHref,
+      });
+    }
+    for (const m of markets) {
+      const fx = isFootballContestMarket(m) ? footballChromeFixture(fixtures, m) : null;
+      if (alreadyShown(m, fx)) continue;
+      if (fx) {
+        if (fx.fixtureId > 0) seenFixtureIds.add(fx.fixtureId);
+        addedBooks.push(m);
+        out.push({
+          key: `m-${m.id}`,
+          kind: 'football',
+          fixture: fx,
+          book: m,
+          href: `/market/${questionTicketMarket(catalog, m, heldOutcomeIds).id}`,
+        });
+      } else {
+        addedBooks.push(m);
+        out.push({ key: `m-${m.id}`, kind: 'generic', market: m });
+      }
+      if (out.length >= 5) break;
+    }
+    return out;
+  }, [catalog, fixtures, heldOutcomeIds, markets, pinBook, pinFixture, pinHref]);
+
+  const count = slides.length;
+  const { index, progress, go, pause, resume } = useFeaturedAutoplay(count);
+  const pager =
+    count > 1 ? (
+      <FeaturedDots total={count} index={index} progress={progress} onDot={go} />
+    ) : null;
+  if (loading && !slides.length) return <FeaturedEventSkeleton />;
+  const slide = slides[Math.min(index, Math.max(0, count - 1))] ?? null;
+  if (!slide) {
+    return (
+      <FeaturedEvent
+        markets={[]}
+        catalog={catalog}
+        heldOutcomeIds={heldOutcomeIds}
+        loading={loading}
+      />
+    );
+  }
+  return (
+    <div onPointerEnter={pause} onPointerLeave={resume}>
+      {slide.kind === 'football' ? (
+        <EplFeatured
+          fixture={slide.fixture}
+          href={slide.href}
+          catalog={catalog}
+          book={slide.book}
+          pager={pager}
+        />
+      ) : (
+        <FeaturedEvent
+          markets={[slide.market]}
+          catalog={catalog}
+          heldOutcomeIds={heldOutcomeIds}
+          loading={false}
+          pager={pager}
+        />
+      )}
+    </div>
+  );
+}
+
 export function HomePage() {
   const { hip4 } = useCopy();
   const q = useCatalog();
   const { sport } = useCatalogUi();
+  const heldOutcomeIds = useHeldOutcomeIds();
   const [showAllLive, setShowAllLive] = useState(false);
   const all = q.data ?? [];
   const scoped = useMemo(() => applySportChip(all, sport), [all, sport]);
-  const featured = useMemo(() => featuredCatalogMarkets(all, sport, 5), [all, sport]);
-  const trending = useMemo(() => trendingCatalogMarkets(all, sport, 5), [all, sport]);
+  const featured = useMemo(
+    () =>
+      featuredCatalogMarkets(all, sport, sport === 'all' || sport === 'football' ? 8 : 5, heldOutcomeIds),
+    [all, sport, heldOutcomeIds],
+  );
+  const trending = useMemo(
+    () => trendingCatalogMarkets(all, sport, 5, heldOutcomeIds),
+    [all, sport, heldOutcomeIds],
+  );
   const eplQ = useQuery({
     queryKey: ['sports', 'football', 'epl'],
     queryFn: fetchEplBoard,
     staleTime: 45_000,
-    refetchInterval: (q) => (q.state.data?.featured?.live ? 45_000 : 90_000),
+    refetchInterval: (q) => (boardHasLiveFixture(q.state.data) ? 45_000 : 90_000),
     retry: 1,
   });
-  const eplFixture =
-    sport === 'football' &&
-    eplQ.data?.configured &&
-    eplQ.data.featured &&
-    isTodaysEplFixture(eplQ.data.featured)
-      ? eplQ.data.featured
-      : null;
-  const eplResolved = eplQ.isFetched || eplQ.isError;
-  const showEplHero = Boolean(eplFixture);
-  const holdSlider = sport === 'football' && !eplResolved && !eplFixture;
-  const sliderHeld = useRef(featured);
-  if (!holdSlider) sliderHeld.current = featured;
-  const sliderMarkets = holdSlider ? sliderHeld.current : featured;
-  const heroKey = showEplHero ? 'epl' : holdSlider ? 'hold' : sport;
+  const catalogLoading = q.isLoading && !q.data;
+  const fixtures = useMemo(() => boardFixtures(eplQ.data), [eplQ.data]);
+  const eplBoardFixture =
+    eplQ.data?.configured && eplQ.data.featured ? eplQ.data.featured : null;
+  const eplBook = useMemo(() => {
+    if (!eplBoardFixture) return null;
+    return hip4ContestForTeams(
+      all,
+      eplBoardFixture.home.name,
+      eplBoardFixture.away.name,
+      heldOutcomeIds,
+    );
+  }, [all, eplBoardFixture, heldOutcomeIds]);
+  const pinFixture =
+    sport === 'football' ? eplBoardFixture : eplBook ? eplBoardFixture : null;
+  const showFootballHero = sport === 'all' || sport === 'football';
+  const sliderMarkets = featured;
+  const heroKey = showFootballHero ? `fb-${sport}` : sport;
   const eplHref = (() => {
     const footballBook =
+      eplBook ??
       featured.find((m) => sportOnlyChipForMarket(m) === 'football') ??
       scoped.find((m) => sportOnlyChipForMarket(m) === 'football');
-    return footballBook ? `/market/${footballBook.id}` : '/markets?view=open&sport=football';
+    return footballBook
+      ? `/market/${questionTicketMarket(all, footballBook, heldOutcomeIds).id}`
+      : '/markets?view=open&sport=football';
   })();
   const endingSoon = useMemo(
-    () => applyCatalogView(scoped, 'endingSoon').slice(0, 5),
-    [scoped],
+    () => catalogListRows(all, 'endingSoon', sport, '', heldOutcomeIds).slice(0, 5),
+    [all, sport, heldOutcomeIds],
   );
-  const live = useMemo(() => applyCatalogView(scoped, 'open'), [scoped]);
+  const live = useMemo(
+    () => catalogListRows(all, 'open', sport, '', heldOutcomeIds),
+    [all, sport, heldOutcomeIds],
+  );
 
   useEffect(() => {
     setShowAllLive(false);
   }, [sport]);
 
-  const livePreview = showAllLive ? live : live.slice(0, 14);
-  const liveHidden = Math.max(0, live.length - 14);
-  const catalogLoading = q.isLoading && !q.data;
+  const livePreview = showAllLive ? live : live.slice(0, 16);
+  const liveHidden = Math.max(0, live.length - 16);
 
   return (
     <div className="min-w-0 w-full max-w-full">
@@ -371,21 +586,43 @@ export function HomePage() {
             </Link>
           </div>
           <div key={heroKey} className="page-enter">
-            {showEplHero && eplFixture ? (
-              <EplFeatured fixture={eplFixture} href={eplHref} />
+            {showFootballHero ? (
+              <HomeFeatured
+                pinFixture={pinFixture}
+                pinHref={eplHref}
+                pinBook={eplBook}
+                markets={sliderMarkets}
+                fixtures={fixtures}
+                catalog={all}
+                heldOutcomeIds={heldOutcomeIds}
+                loading={catalogLoading}
+              />
             ) : (
               <FeaturedEvent
                 key={heroKey}
                 markets={sliderMarkets}
                 catalog={all}
+                heldOutcomeIds={heldOutcomeIds}
                 loading={catalogLoading}
               />
             )}
           </div>
         </div>
         <aside className="flex min-w-0 w-full max-w-full flex-col gap-4">
-          <TrendingSidebar markets={trending} catalog={all} loading={catalogLoading} sport={sport} />
-          <EndingSoonSidebar markets={endingSoon} loading={catalogLoading} sport={sport} />
+          <TrendingSidebar
+            markets={trending}
+            catalog={all}
+            heldOutcomeIds={heldOutcomeIds}
+            loading={catalogLoading}
+            sport={sport}
+          />
+          <EndingSoonSidebar
+            markets={endingSoon}
+            catalog={all}
+            heldOutcomeIds={heldOutcomeIds}
+            loading={catalogLoading}
+            sport={sport}
+          />
         </aside>
       </div>
 
@@ -405,6 +642,8 @@ export function HomePage() {
         <CatalogBody
           query={q}
           rows={livePreview}
+          catalog={all}
+          heldOutcomeIds={heldOutcomeIds}
           chip={sport}
           emptyLive
         />
@@ -429,9 +668,10 @@ export function MarketsPage() {
   const { hip4 } = useCopy();
   const q = useCatalog();
   const { sport, setSport, search, setSearch } = useCatalogUi();
+  const heldOutcomeIds = useHeldOutcomeIds();
   const [params] = useSearchParams();
   const [view, setView] = useState<MarketCatalogView>('endingSoon');
-  const rows = useFilteredCatalog(q.data ?? [], view, sport, search);
+  const rows = useFilteredCatalog(q.data ?? [], view, sport, search, heldOutcomeIds);
 
   useEffect(() => {
     const qParam = params.get('q');
@@ -449,6 +689,8 @@ export function MarketsPage() {
       <CatalogBody
         query={q}
         rows={rows}
+        catalog={q.data ?? []}
+        heldOutcomeIds={heldOutcomeIds}
         chip={
           search.trim() || applySportChip(q.data ?? [], sport).length > 0 ? undefined : sport
         }
@@ -462,6 +704,8 @@ export function MarketsPage() {
 function CatalogBody({
   query,
   rows,
+  catalog = [],
+  heldOutcomeIds,
   chip,
   emptyLive,
   view,
@@ -469,6 +713,8 @@ function CatalogBody({
 }: {
   query: ReturnType<typeof useCatalog>;
   rows: ListedMarket[];
+  catalog?: ListedMarket[];
+  heldOutcomeIds?: Iterable<number> | null;
   chip?: SportChipId;
   emptyLive?: boolean;
   view?: MarketCatalogView;
@@ -476,7 +722,7 @@ function CatalogBody({
 }) {
   const { hip4 } = useCopy();
   if (query.isLoading && !query.data) {
-    return <MarketGridSkeleton count={6} />;
+    return <MarketGridSkeleton count={8} />;
   }
   if (query.isError) {
     return (
@@ -532,9 +778,14 @@ function CatalogBody({
     );
   }
   return (
-    <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
       {rows.map((m) => (
-        <MarketRow key={m.id} market={m} />
+        <MarketRow
+          key={m.id}
+          market={m}
+          catalog={catalog}
+          heldOutcomeIds={heldOutcomeIds}
+        />
       ))}
     </div>
   );

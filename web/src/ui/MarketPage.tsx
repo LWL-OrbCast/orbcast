@@ -14,6 +14,7 @@ import {
   fetchLegCandleSamples,
   HIP4_CATALOG_STALE_MS,
   impliedPercent,
+  isOtherOutcomeLeg,
   listOutcomes,
   MIN_OUTCOME_NOTIONAL_USD,
   outcomeSellSharesForUsd,
@@ -63,7 +64,7 @@ import {
 import { MarketPageSkeleton, Skel } from './skeleton';
 import { ProbabilityChart, type ProbSeries } from './ProbabilityChart';
 import { WEB_CHART_RANGES, type WebChartRangeId } from './chartRanges';
-import { LEG_PALETTE, NO_COLOR, YES_COLOR } from './outcomeColors';
+import { multiLegStampColor, NO_COLOR, YES_COLOR } from './outcomeColors';
 import { RollingNumber } from './RollingNumber';
 import { ShareMarketButton } from './ShareMarketButton';
 
@@ -127,7 +128,7 @@ export function MarketPage() {
     error?: OrderTicketError;
     payload: OrderTicketPayload;
   } | null>(null);
-  const [rangeId, setRangeId] = useState<WebChartRangeId>('1d');
+  const [rangeId, setRangeId] = useState<WebChartRangeId>('1h');
   const frozenSeries = useRef<ProbSeries[]>([]);
 
   const catalog = useQuery({
@@ -222,7 +223,7 @@ export function MarketPage() {
   const quotePx = action === 'buy' ? quoteAsk : quoteBid;
   const quoteReady = quoteBid != null || quoteAsk != null;
 
-  const range = WEB_CHART_RANGES.find((r) => r.id === rangeId) ?? WEB_CHART_RANGES[2];
+  const range = WEB_CHART_RANGES.find((r) => r.id === rangeId) ?? WEB_CHART_RANGES[0];
   const legsKey = streamLegs.map((l) => l.key).join(',');
 
   const chartQ = useQuery({
@@ -520,7 +521,10 @@ export function MarketPage() {
   };
 
   const accentFor = (index: number, s: OutcomeSide): string => {
-    if (multiLeg) return LEG_PALETTE[index % LEG_PALETTE.length];
+    if (multiLeg) {
+      const m = siblings[index];
+      return multiLegStampColor(m ? isOtherOutcomeLeg(m) : false, index);
+    }
     return s === 0 ? YES_COLOR : NO_COLOR;
   };
 

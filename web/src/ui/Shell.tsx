@@ -45,7 +45,7 @@ function ShellFrame() {
     useWebAuth();
   const activity = usePositionActivity();
   const qc = useQueryClient();
-  const { search, setSearch } = useCatalogUi();
+  const { search, setSearch, setSport } = useCatalogUi();
   const location = useLocation();
   const [acctOpen, setAcctOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -77,6 +77,13 @@ function ShellFrame() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
+  const goHomeAll = () => {
+    setSport('all');
+    setSearch('');
+    setSearchOpen(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  };
+
   const submitSearch = (e: FormEvent) => {
     e.preventDefault();
     setSearchOpen(true);
@@ -97,7 +104,7 @@ function ShellFrame() {
     <div className="flex min-h-screen min-w-0 max-w-full flex-col overflow-x-clip bg-[var(--bg)]">
       <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-white/92 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1280px] items-center gap-3 px-4 py-2.5 sm:gap-4 sm:px-6">
-          <Link to="/" className="flex shrink-0 items-center">
+          <Link to="/" className="flex shrink-0 items-center" onClick={goHomeAll}>
             <img
               src={orbcastLogo}
               alt="OrbCast"

@@ -25,10 +25,14 @@ export type MarketSymbolKey =
   | 'spcx'
   | 'lol'
   | 'epl'
+  | 'laliga'
+  | 'seriea'
+  | 'usopen'
   | 'nfl'
   | 'mlb'
   | 'uefa'
   | 'fed'
+  | 'pons'
   | 'arsenal'
   | 'madrid'
   | 'mancity'
@@ -68,6 +72,7 @@ const TICKER_KEY: Record<string, MarketSymbolKey> = {
   skhx: 'skhx',
   sndk: 'sndk',
   spcx: 'spcx',
+  pons: 'pons',
 };
 
 const TEAM_RE: [RegExp, MarketSymbolKey][] = [
@@ -94,6 +99,7 @@ const BLOB_TICKER_RE: [RegExp, MarketSymbolKey][] = [
   [/\bskhx\b/i, 'skhx'],
   [/\bsndk\b/i, 'sndk'],
   [/\bspcx\b/i, 'spcx'],
+  [/\bpons\b/i, 'pons'],
 ];
 
 export function symbolObjectFit(key: MarketSymbolKey): 'cover' | 'contain' {
@@ -173,6 +179,11 @@ function leagueKey(fields: Record<string, string>, market: ListedMarket): Market
     .join(' ');
   if (/league of legends|\blol\b|\blcs\b|\blec\b|\blpl\b/i.test(hay)) return 'lol';
   if (/premier league|\bepl\b/i.test(hay)) return 'epl';
+  if (/la\s*liga|\blaliga\b|primera divisi/i.test(hay)) return 'laliga';
+  if (/\bseri[ae]\s*a\b/i.test(hay)) return 'seriea';
+  if (/\bus\s*[- ]?open\b/i.test(hay) && !/\b(golf|pga|surfing|open\s+cup)\b/i.test(hay)) {
+    return 'usopen';
+  }
   if (/uefa|champions league/i.test(hay)) return 'uefa';
   if (/\bnfl\b|national football league/i.test(hay)) return 'nfl';
   if (/\bmlb\b|major league baseball|\bbaseball\b/i.test(hay)) return 'mlb';

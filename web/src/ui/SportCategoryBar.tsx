@@ -43,6 +43,14 @@ export function SportCategoryBar() {
     };
   }, [syncEdges]);
 
+  useEffect(() => {
+    if (sport !== 'all') return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTo({ left: 0, behavior: 'smooth' });
+    syncEdges();
+  }, [sport, syncEdges]);
+
   const pageScroll = (dir: -1 | 1) => {
     const el = scrollerRef.current;
     if (!el) return;

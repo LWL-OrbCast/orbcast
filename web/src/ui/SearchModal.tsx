@@ -4,10 +4,13 @@ import {
   displayListedTitle,
   formatHighlightVolume,
   formatMarketVolumeAmount,
+  heldOutcomeIdsFromBalances,
   impliedPercent,
-  topMarketsByVolume,
+  questionTicketMarket,
 } from '@hip4';
-import { applySearch } from '@hip4/catalog';
+import { questionVolumeUsd, searchCatalogRows, trendingCatalogMarkets } from '@hip4/catalog';
+import { useWebAuth } from '../lib/auth';
+import { useSpotAccount } from '../lib/useSpotAccount';
 import { interpolate, useCopy } from '../lib/copy';
 import { useCatalog } from './catalog';
 import { IconClose, IconSearch } from './icons';
@@ -29,18 +32,24 @@ export function SearchModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const catalog = useCatalog();
   const all = catalog.data ?? [];
+  const { address, authenticated } = useWebAuth();
+  const spot = useSpotAccount(address, authenticated);
+  const heldOutcomeIds = useMemo(
+    () => heldOutcomeIdsFromBalances(spot.balances),
+    [spot.balances],
+  );
 
   const rows = useMemo(() => {
     const needle = query.trim();
-    if (!needle) return topMarketsByVolume(all, PREVIEW);
-    return applySearch(all, needle).slice(0, PREVIEW);
-  }, [all, query]);
+    if (!needle) return trendingCatalogMarkets(all, 'all', PREVIEW, heldOutcomeIds);
+    return searchCatalogRows(all, needle, heldOutcomeIds).slice(0, PREVIEW);
+  }, [all, query, heldOutcomeIds]);
 
   const totalMatch = useMemo(() => {
     const needle = query.trim();
     if (!needle) return all.length;
-    return applySearch(all, needle).length;
-  }, [all, query]);
+    return searchCatalogRows(all, needle, heldOutcomeIds).length;
+  }, [all, query, heldOutcomeIds]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -110,8 +119,9 @@ export function SearchModal({
             rows.map((m) => {
               const yes = m.sides[0];
               const heading = displayListedTitle(m);
-              const vol = formatHighlightVolume(m.volumeUsd);
-              const amount = formatMarketVolumeAmount(m.volumeUsd);
+              const volUsd = questionVolumeUsd(all, m);
+              const vol = formatHighlightVolume(volUsd);
+              const amount = formatMarketVolumeAmount(volUsd);
               const meta =
                 vol !== '—'
                   ? interpolate(hip4.row.volume, { amount: amount || vol })
@@ -125,7 +135,7 @@ export function SearchModal({
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--bg)]"
                     onClick={() => {
                       onClose();
-                      navigate(`/market/${m.id}`);
+                      navigate(`/market/${questionTicketMarket(all, m, heldOutcomeIds).id}`);
                     }}
                   >
                     <MarketSymbol market={m} size={36} className="rounded-xl" />

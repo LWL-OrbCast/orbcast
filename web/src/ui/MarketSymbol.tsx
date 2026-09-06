@@ -20,10 +20,14 @@ import sndk from '../../../frontend/assets/images/symbols/sndk-icon.webp';
 import spcx from '../../../frontend/assets/images/symbols/spcx-icon.webp';
 import lol from '../../../frontend/assets/images/symbols/lol-icon.webp';
 import epl from '../../../frontend/assets/images/symbols/epl-icon.webp';
+import laliga from '../../../frontend/assets/images/symbols/laliga-icon.webp';
+import seriea from '../../../frontend/assets/images/symbols/serie-a-icon.webp';
+import usopen from '../../../frontend/assets/images/symbols/usopen-icon.webp';
 import nfl from '../../../frontend/assets/images/symbols/nfl-icon.webp';
 import mlb from '../../../frontend/assets/images/symbols/mlb-icon.webp';
 import uefa from '../../../frontend/assets/images/symbols/uefa-icon.webp';
 import fed from '../../../frontend/assets/images/symbols/fed-icon.webp';
+import pons from '../../../frontend/assets/images/symbols/pons-icon.webp';
 import arsenal from '../../../frontend/assets/images/symbols/arsenal.webp';
 import madrid from '../../../frontend/assets/images/symbols/madrid.webp';
 import mancity from '../../../frontend/assets/images/symbols/mancity.webp';
@@ -47,10 +51,14 @@ const SYMBOL_SRC: Record<MarketSymbolKey, string> = {
   spcx,
   lol,
   epl,
+  laliga,
+  seriea,
+  usopen,
   nfl,
   mlb,
   uefa,
   fed,
+  pons,
   arsenal,
   madrid,
   mancity,

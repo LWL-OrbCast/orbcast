@@ -502,6 +502,15 @@ export function displayListedTitle(market: ListedMarket): string {
   return stripHip3DexPrefixForDisplay(title);
 }
 
+/** Featured banner: `Everton vs Manchester United`, not the long league+matchday line. */
+export function displayFeaturedHeading(market: ListedMarket): string {
+  const fields = marketSpecFields(market);
+  const a = fields.participantA?.trim();
+  const b = fields.participantB?.trim();
+  if (a && b) return `${a} vs ${b}`;
+  return displayListedTitle(market);
+}
+
 export type SettledOutcomeLabel = {
   title: string;
   sideNames: Record<0 | 1, string>;
@@ -1309,25 +1318,119 @@ export function questionOutcomeIds(all: ListedMarket[], market: ListedMarket): n
   return [...new Set(ids.length ? ids : [market.outcomeId])];
 }
 
+export function isOtherOutcomeLeg(m: ListedMarket): boolean {
+  return (
+    isProtocolFallbackName(m.raw.name) ||
+    /fallback/i.test(m.raw.name) ||
+    /fallback/i.test(m.legLabel) ||
+    /^other$/i.test(m.legLabel)
+  );
+}
+
+/**
+ * HIP-4 always registers a protocol fallback (`template fallback`) on every
+ * question. Matches / rate decisions already list every result — that leftover
+ * is not an Other option. Winner / outright books use it as the unlisted bucket.
+ */
+export function questionHasUserFacingOther(market: ListedMarket): boolean {
+  const fields = marketSpecFields(market);
+  if ((fields.participantA && fields.participantB) || /^match$/i.test(fields.contestType ?? '')) {
+    return false;
+  }
+  if (/^price(bucket|binary)$/i.test(fields.class ?? '')) return false;
+  const blob = [market.templateId, market.questionName, market.title, market.raw.name].join(' ');
+  if (/sportscontest|policyrate/i.test(blob)) return false;
+  return /winner|outright|champion|tournament/i.test(blob);
+}
+
 /** Named outcomes that share a HIP-4 question (FOMC No change / Increase / Decrease). */
 export function questionSiblings(all: ListedMarket[], market: ListedMarket): ListedMarket[] {
   if (market.questionId == null) return [market];
   const sibs = all.filter((m) => m.questionId === market.questionId);
-  const named = sibs.filter((m) => !/fallback/i.test(m.raw.name) && !/fallback/i.test(m.legLabel));
+  const named = sibs.filter((m) => !isOtherOutcomeLeg(m));
+  const fallbacks = sibs.filter((m) => isOtherOutcomeLeg(m));
   const use = named.length > 1 ? named : sibs;
-  const list = use.length > 1 ? use : [market];
-  return [...list].sort((a, b) =>
-    a.legLabel.localeCompare(b.legLabel, undefined, { sensitivity: 'base' }),
-  );
+  let list = use.length > 1 ? use : [market];
+  if (named.length > 1 && questionHasUserFacingOther(market)) {
+    list = [...list, ...fallbacks.filter((f) => !list.some((n) => n.id === f.id))];
+  }
+  const fields = marketSpecFields(market);
+  const a = (fields.participantA ?? '').trim().toLowerCase();
+  const b = (fields.participantB ?? '').trim().toLowerCase();
+  const contestOrder = a && b;
+  return [...list].sort((x, y) => {
+    if (isOtherOutcomeLeg(x) !== isOtherOutcomeLeg(y)) return isOtherOutcomeLeg(x) ? 1 : -1;
+    if (contestOrder) {
+      const rank = (m: ListedMarket) => {
+        const lab = (m.legLabel || '').trim().toLowerCase();
+        if (lab && (lab === a || a.includes(lab) || lab.includes(a))) return 0;
+        if (/^draw$/i.test(m.legLabel ?? '')) return 1;
+        if (lab && (lab === b || b.includes(lab) || lab.includes(b))) return 2;
+        return 3;
+      };
+      const d = rank(x) - rank(y);
+      if (d !== 0) return d;
+    }
+    return x.legLabel.localeCompare(y.legLabel, undefined, { sensitivity: 'base' });
+  });
 }
 
 /**
  * Book to open when the UI shows the *question* (Trending / featured title),
  * not a named team. Volume-leader rows would otherwise land on the favorite.
  */
-export function questionTicketMarket(all: ListedMarket[], market: ListedMarket): ListedMarket {
+export function questionTicketMarket(
+  all: ListedMarket[],
+  market: ListedMarket,
+  heldOutcomeIds?: Iterable<number> | null,
+): ListedMarket {
+  const sibs = questionSiblings(all, market);
+  const held = heldOutcomeIds ? new Set(heldOutcomeIds) : null;
+  if (held?.size) {
+    const hit = sibs.find((s) => held.has(s.outcomeId));
+    if (hit) return hit;
+  }
   if (!market.multiOutcome) return market;
-  return questionSiblings(all, market)[0] ?? market;
+  return sibs[0] ?? market;
+}
+
+/** Catalog stamps — same legs as the ticket, including Other only when it is a real option. */
+export function questionCatalogLegs(all: ListedMarket[], market: ListedMarket): ListedMarket[] {
+  return questionSiblings(all, market);
+}
+
+function yesChance(m: ListedMarket): number {
+  const p = m.sides.find((s) => s.side === 0)?.probability;
+  return p != null && Number.isFinite(p) ? p : -1;
+}
+
+/** Compact catalog cards: the two highest-chance named outcomes. */
+export function topQuestionLegsByChance(legs: ListedMarket[], limit = 2): ListedMarket[] {
+  if (legs.length <= limit) return legs;
+  return [...legs]
+    .sort((a, b) => {
+      const d = yesChance(b) - yesChance(a);
+      if (d !== 0) return d;
+      return (b.volumeUsd ?? 0) - (a.volumeUsd ?? 0);
+    })
+    .slice(0, limit);
+}
+
+/** Outcome ids with a live share balance (Yes or No). */
+export function heldOutcomeIdsFromBalances(
+  balances: Array<Record<string, unknown>> | unknown,
+): Set<number> {
+  const ids = new Set<number>();
+  const rows = Array.isArray(balances) ? balances : [];
+  for (const raw of rows) {
+    if (!raw || typeof raw !== 'object') continue;
+    const b = raw as Record<string, unknown>;
+    const parsed = parseSideCoin(String(b.coin ?? b.token ?? ''));
+    if (!parsed) continue;
+    const total = Number(b.total);
+    if (Number.isFinite(total) && total > 0) ids.add(parsed.outcomeId);
+  }
+  return ids;
 }
 
 export function parsePipeFields(description: string): Record<string, string> {

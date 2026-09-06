@@ -1892,7 +1892,7 @@ async def version():
 
 @api_router.get("/sports/football/epl")
 async def sports_football_epl():
-    """Premier League match chrome (API-Sports). Not trading odds."""
+    """Football match chrome — EPL / La Liga / Serie A (API-Sports). Not trading odds."""
     return await get_epl_board()
 
 

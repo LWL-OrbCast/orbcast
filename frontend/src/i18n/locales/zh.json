@@ -793,7 +793,8 @@
         "settled": "已结算"
       },
       "row": {
-        "volume": "交易量 {{amount}}"
+        "volume": "成交额 {{amount}}",
+        "moreOutcomes": "+{{count}} 个"
       },
       "featured": {
         "league": "欧冠联赛",

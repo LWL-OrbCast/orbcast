@@ -793,7 +793,8 @@
       "settled": "Settled"
     },
     "row": {
-      "volume": "Vol. {{amount}}"
+      "volume": "Vol. {{amount}}",
+      "moreOutcomes": "+{{count}} more"
     },
     "featured": {
       "league": "UEFA Champions League",
@@ -806,7 +807,7 @@
       "ht": "HT",
       "ft": "FT",
       "minute": "{{n}}'",
-      "none": "No upcoming Premier League match"
+      "none": "No upcoming football match"
     },
     "ticket": {
       "back": "Markets",

@@ -8,6 +8,7 @@ import { interpolate, useCopy } from '../lib/copy';
 import { IconAlert, IconCheck, IconClose } from './icons';
 import { RollingNumber } from './RollingNumber';
 import { YES_COLOR } from './outcomeColors';
+import { TradeConfetti } from './TradeConfetti';
 
 export type OrderTicketPayload = {
   tradeSide: 'buy' | 'sell';
@@ -175,6 +176,7 @@ export function OrderTicketModal({
         className="absolute inset-0 cursor-default bg-[rgba(15,23,42,0.45)]"
         tabIndex={-1}
       />
+      {isReceipt && isBuy && status !== 'resting' ? <TradeConfetti /> : null}
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-[var(--border)] bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.25)]">
         <div className="mb-2.5 flex items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-2">

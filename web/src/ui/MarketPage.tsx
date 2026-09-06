@@ -34,10 +34,8 @@ import {
   type OutcomeSide,
 } from '@hip4';
 import { isEconomicsCatalogMarket } from '@hip4/catalog';
-import { fetchBuilderConfig, reportTrade } from '../lib/api';
+import { reportTrade } from '../lib/api';
 import { useWebAuth } from '../lib/auth';
-import { formatBuilderPercent } from '../lib/builderFee';
-import { BUILDER_FEE_TENTHS } from '../lib/config';
 import { interpolate, tHip4, useCopy } from '../lib/copy';
 import {
   extractHyperliquidErrorText,
@@ -100,7 +98,7 @@ function fmtShares(n: number): string {
 }
 
 export function MarketPage() {
-  const { common: commonCopy, hip4, fees: feesCopy } = useCopy();
+  const { common: commonCopy, hip4 } = useCopy();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   // First history entry (shared link, new tab) has key "default" — back would leave the site.
@@ -342,18 +340,6 @@ export function MarketPage() {
     placeholderData: (previous) =>
       previous ?? (address ? readCachedWebSetup(address) : undefined),
   });
-  const liveSetup =
-    signingReady && setupQ.isFetched && !setupQ.isPlaceholderData ? setupQ.data : undefined;
-  const feeQ = useQuery({
-    queryKey: ['api', 'builder-config', address],
-    queryFn: () => fetchBuilderConfig(address ?? undefined),
-  });
-  const sellFeeTenths =
-    typeof feeQ.data?.fee === 'number'
-      ? Math.min(Math.max(0, Math.floor(feeQ.data.fee)), BUILDER_FEE_TENTHS)
-      : BUILDER_FEE_TENTHS;
-  const sellFeeLabel = formatBuilderPercent(sellFeeTenths, feesCopy.free);
-
   type PlaceVars = {
     outcomeId: number;
     side: OutcomeSide;
@@ -817,7 +803,7 @@ export function MarketPage() {
         </div>
       </div>
 
-      <aside className="h-fit rounded-2xl border border-[var(--border)] bg-white p-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-20">
+      <aside className="h-fit max-h-none overflow-visible rounded-2xl border border-[var(--border)] bg-white p-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain">
         {selectedMarket.status === 'settled' ? (
           <p className="font-bold">{hip4.ticket.settled}</p>
         ) : (
@@ -938,9 +924,6 @@ export function MarketPage() {
                 })}
               </div>
             ) : null}
-            <p className="mt-3 text-xs text-[var(--text-3)]">
-              {interpolate(hip4.ticket.feeHint, { rate: sellFeeLabel })}
-            </p>
             <div className="mt-4 flex items-baseline justify-between gap-2">
               <label className="text-xs font-bold text-[var(--text-2)]">
                 {showSellShares
@@ -1134,11 +1117,6 @@ export function MarketPage() {
               <p className="mt-2 text-xs text-[var(--text-2)]">{hip4.ticket.fillShort}</p>
             ) : null}
             {err && !ticket ? <p className="mt-2 text-xs text-[var(--danger)]">{err}</p> : null}
-            {authenticated && liveSetup && !liveSetup.builderFee ? (
-              <p className="mt-2 text-xs text-[var(--text-2)]">
-                {interpolate(hip4.wallet.firstOrderFeeHint, { rate: sellFeeLabel })}
-              </p>
-            ) : null}
             {hydrating ? (
               <div className="skel mt-4 h-12 w-full rounded-xl" />
             ) : !authenticated ? (

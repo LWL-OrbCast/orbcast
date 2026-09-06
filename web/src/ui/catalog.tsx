@@ -45,7 +45,7 @@ import { useFeaturedAutoplay } from '@hip4/autoplay';
 import { interpolate, useCopy } from '../lib/copy';
 import { useCatalogUi } from './catalogUi';
 import { EplFeatured } from './EplFeatured';
-import { FeaturedDots, FeaturedEvent } from './FeaturedEvent';
+import { FeaturedAdjacentNav, FeaturedEvent } from './FeaturedEvent';
 import { looksLikeScheduleSubtitle, formatHms } from './formatTime';
 import { IconChevron, IconFlame } from './icons';
 import { MarketSymbol } from './MarketSymbol';
@@ -399,7 +399,16 @@ type FeaturedSlide =
   | { key: string; kind: 'football'; fixture: EplFixture; book: ListedMarket | null; href: string }
   | { key: string; kind: 'generic'; market: ListedMarket };
 
+function slideLabel(slide: FeaturedSlide): string {
+  if (slide.kind === 'football') {
+    return `${slide.fixture.home.name} vs ${slide.fixture.away.name}`;
+  }
+  return displayFeaturedHeading(slide.market);
+}
+
 function HomeFeatured({
+  title,
+  seeAllHref,
   pinFixture,
   pinHref,
   pinBook,
@@ -409,6 +418,8 @@ function HomeFeatured({
   heldOutcomeIds,
   loading,
 }: {
+  title: string;
+  seeAllHref: string;
   pinFixture: EplFixture | null;
   pinHref: string;
   pinBook: ListedMarket | null;
@@ -464,44 +475,77 @@ function HomeFeatured({
     return out;
   }, [catalog, fixtures, heldOutcomeIds, markets, pinBook, pinFixture, pinHref]);
 
+  const { hip4 } = useCopy();
   const count = slides.length;
-  const { index, progress, go, pause, resume } = useFeaturedAutoplay(count);
-  const pager =
-    count > 1 ? (
-      <FeaturedDots total={count} index={index} progress={progress} onDot={go} />
-    ) : null;
-  if (loading && !slides.length) return <FeaturedEventSkeleton />;
+  const { index, go, pause, resume } = useFeaturedAutoplay(count);
+  const prev = count > 1 ? slides[(index - 1 + count) % count] : null;
+  const next = count > 1 ? slides[(index + 1) % count] : null;
   const slide = slides[Math.min(index, Math.max(0, count - 1))] ?? null;
+
+  const header = (
+    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <h2 className="text-xl font-extrabold">{title}</h2>
+      <div className="ml-auto flex min-w-0 items-center justify-end gap-2">
+        {prev && next ? (
+          <FeaturedAdjacentNav
+            prevLabel={slideLabel(prev)}
+            nextLabel={slideLabel(next)}
+            onPrev={() => go(index - 1)}
+            onNext={() => go(index + 1)}
+          />
+        ) : null}
+        <Link
+          to={seeAllHref}
+          className="shrink-0 text-sm font-bold text-[var(--accent-dark)]"
+        >
+          {hip4.home.seeAll}
+        </Link>
+      </div>
+    </div>
+  );
+
+  if (loading && !slides.length) {
+    return (
+      <>
+        {header}
+        <FeaturedEventSkeleton />
+      </>
+    );
+  }
   if (!slide) {
     return (
-      <FeaturedEvent
-        markets={[]}
-        catalog={catalog}
-        heldOutcomeIds={heldOutcomeIds}
-        loading={loading}
-      />
+      <>
+        {header}
+        <FeaturedEvent
+          markets={[]}
+          catalog={catalog}
+          heldOutcomeIds={heldOutcomeIds}
+          loading={loading}
+        />
+      </>
     );
   }
   return (
-    <div onPointerEnter={pause} onPointerLeave={resume}>
-      {slide.kind === 'football' ? (
-        <EplFeatured
-          fixture={slide.fixture}
-          href={slide.href}
-          catalog={catalog}
-          book={slide.book}
-          pager={pager}
-        />
-      ) : (
-        <FeaturedEvent
-          markets={[slide.market]}
-          catalog={catalog}
-          heldOutcomeIds={heldOutcomeIds}
-          loading={false}
-          pager={pager}
-        />
-      )}
-    </div>
+    <>
+      {header}
+      <div onPointerEnter={pause} onPointerLeave={resume}>
+        {slide.kind === 'football' ? (
+          <EplFeatured
+            fixture={slide.fixture}
+            href={slide.href}
+            catalog={catalog}
+            book={slide.book}
+          />
+        ) : (
+          <FeaturedEvent
+            markets={[slide.market]}
+            catalog={catalog}
+            heldOutcomeIds={heldOutcomeIds}
+            loading={false}
+          />
+        )}
+      </div>
+    </>
   );
 }
 
@@ -576,36 +620,21 @@ export function HomePage() {
     <div className="min-w-0 w-full max-w-full">
       <div className="grid w-full min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="min-w-0 w-full max-w-full">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-xl font-extrabold">{hip4.home.topEvent}</h2>
-            <Link
-              to={sport === 'all' ? '/markets?view=open' : `/markets?view=open&sport=${sport}`}
-              className="text-sm font-bold text-[var(--accent-dark)]"
-            >
-              {hip4.home.seeAll}
-            </Link>
-          </div>
           <div key={heroKey} className="page-enter">
-            {showFootballHero ? (
-              <HomeFeatured
-                pinFixture={pinFixture}
-                pinHref={eplHref}
-                pinBook={eplBook}
-                markets={sliderMarkets}
-                fixtures={fixtures}
-                catalog={all}
-                heldOutcomeIds={heldOutcomeIds}
-                loading={catalogLoading}
-              />
-            ) : (
-              <FeaturedEvent
-                key={heroKey}
-                markets={sliderMarkets}
-                catalog={all}
-                heldOutcomeIds={heldOutcomeIds}
-                loading={catalogLoading}
-              />
-            )}
+            <HomeFeatured
+              title={hip4.home.topEvent}
+              seeAllHref={
+                sport === 'all' ? '/markets?view=open' : `/markets?view=open&sport=${sport}`
+              }
+              pinFixture={showFootballHero ? pinFixture : null}
+              pinHref={eplHref}
+              pinBook={showFootballHero ? eplBook : null}
+              markets={sliderMarkets}
+              fixtures={showFootballHero ? fixtures : []}
+              catalog={all}
+              heldOutcomeIds={heldOutcomeIds}
+              loading={catalogLoading}
+            />
           </div>
         </div>
         <aside className="flex min-w-0 w-full max-w-full flex-col gap-4">

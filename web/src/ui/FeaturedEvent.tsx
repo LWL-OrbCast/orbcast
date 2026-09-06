@@ -22,6 +22,7 @@ import { ProbabilityChart, type ProbSeries } from './ProbabilityChart';
 import { RollingNumber } from './RollingNumber';
 import { ShareMarketButton } from './ShareMarketButton';
 import { FeaturedEventSkeleton } from './skeleton';
+import { IconChevron } from './icons';
 import { MarketSymbol } from './MarketSymbol';
 import { useFeaturedAutoplay } from '@hip4/autoplay';
 
@@ -39,7 +40,7 @@ export function FeaturedEvent({
   pager?: ReactNode;
 }) {
   const { hip4 } = useCopy();
-  const { index, progress, go, pause, resume } = useFeaturedAutoplay(markets.length);
+  const { index, pause, resume } = useFeaturedAutoplay(markets.length);
   const featured = markets[Math.min(index, Math.max(0, markets.length - 1))] ?? null;
 
   if (loading && !featured) {
@@ -64,51 +65,37 @@ export function FeaturedEvent({
             {vol !== '—' && featured.expiresAt ? <span> · </span> : null}
             {featured.expiresAt ? <span>Ends {formatEndDate(featured.expiresAt)}</span> : null}
           </div>
-          {pager ??
-            (markets.length > 1 ? (
-              <FeaturedDots total={markets.length} index={index} progress={progress} onDot={go} />
-            ) : null)}
+          {pager}
         </div>
       </article>
     </div>
   );
 }
 
-export function FeaturedDots({
-  total,
-  index,
-  progress,
-  onDot,
+const navPill =
+  'inline-flex min-w-0 max-w-[38vw] items-center gap-1 rounded-full bg-[var(--bg-2)] px-2.5 py-1.5 text-xs font-semibold text-[var(--text-2)] transition-colors hover:bg-[var(--border)] hover:text-[var(--text)] sm:max-w-[11.5rem] sm:text-[13px]';
+
+export function FeaturedAdjacentNav({
+  prevLabel,
+  nextLabel,
+  onPrev,
+  onNext,
 }: {
-  total: number;
-  index: number;
-  progress: number;
-  onDot: (i: number) => void;
+  prevLabel: string;
+  nextLabel: string;
+  onPrev: () => void;
+  onNext: () => void;
 }) {
   return (
-    <div className="ml-auto flex items-center justify-end gap-1.5">
-      {Array.from({ length: total }, (_, i) => {
-        const on = i === index;
-        return (
-          <button
-            key={i}
-            type="button"
-            aria-label={`Featured ${i + 1}`}
-            aria-current={on ? 'true' : undefined}
-            onClick={() => onDot(i)}
-            className={`relative overflow-hidden rounded-full transition-[width] duration-200 ${
-              on ? 'h-2 w-8 bg-[var(--border)]' : 'h-2 w-2 bg-[var(--border)] hover:bg-[var(--text-3)]'
-            }`}
-          >
-            {on ? (
-              <span
-                className="absolute inset-y-0 left-0 rounded-full bg-[var(--ink)]"
-                style={{ width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%` }}
-              />
-            ) : null}
-          </button>
-        );
-      })}
+    <div className="flex min-w-0 items-center gap-1.5">
+      <button type="button" onClick={onPrev} className={navPill} aria-label={prevLabel}>
+        <IconChevron size={14} className="shrink-0 rotate-180" />
+        <span className="min-w-0 truncate">{prevLabel}</span>
+      </button>
+      <button type="button" onClick={onNext} className={navPill} aria-label={nextLabel}>
+        <span className="min-w-0 truncate">{nextLabel}</span>
+        <IconChevron size={14} className="shrink-0" />
+      </button>
     </div>
   );
 }

@@ -320,7 +320,7 @@ export function MarketPageSkeleton() {
         </div>
       </div>
 
-      <aside className="h-fit rounded-2xl border border-[var(--border)] bg-white p-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-20">
+      <aside className="h-fit max-h-none overflow-visible rounded-2xl border border-[var(--border)] bg-white p-5 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain">
         <div className="grid grid-cols-2 gap-3">
           <Skel className="h-12 rounded-xl" />
           <Skel className="h-12 rounded-xl" />

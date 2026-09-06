@@ -220,6 +220,17 @@ export function IconChevron(p: IconProps) {
   );
 }
 
+export function IconList(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M8 7h12M8 12h12M8 17h12" />
+      <circle cx="4.2" cy="7" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="4.2" cy="12" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="4.2" cy="17" r="1.1" fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
 export function IconSliders(p: IconProps) {
   return (
     <Svg {...p}>

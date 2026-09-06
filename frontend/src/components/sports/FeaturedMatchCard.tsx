@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Image, type ImageSource } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -18,11 +19,14 @@ import { ShimmerBone, useShimmerX } from '../skeleton/ShimmerBone';
 import { useTranslation } from 'react-i18next';
 import {
   boardFixtures,
+  canOpenFootballEvents,
   fetchEplBoard,
   formatFootballEvent,
   formatKickoff,
+  previewFootballEvents,
   type FootballFixture,
 } from '../../lib/sportsFootball';
+import { MatchEventsSheet } from './MatchEventsSheet';
 import { fixtureForMarket } from '../../lib/marketCatalog';
 import { questionSiblings, type ListedMarket } from '../../lib/hip4';
 import { LEG_PALETTE, OddsPill } from './OddsPill';
@@ -288,6 +292,7 @@ export function FootballFeaturedCard({
 }) {
   const { t } = useTranslation();
   const [now, setNow] = useState(() => Date.now());
+  const [eventsOpen, setEventsOpen] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -296,7 +301,10 @@ export function FootballFeaturedCard({
 
   const showScore = fixture.live || fixture.finished;
   const mid = showScore ? scoreText(fixture) : '';
-  const events = (fixture.events ?? []).slice(-2).map(formatFootballEvent).filter(Boolean);
+  const previewLines = previewFootballEvents(fixture.events)
+    .map(formatFootballEvent)
+    .filter(Boolean);
+  const showEventsToggle = canOpenFootballEvents(fixture);
   const leagueLogo = fixture.league.logo;
   const kickoffHint =
     !fixture.live && !fixture.finished && fixture.kickoffAt
@@ -304,13 +312,10 @@ export function FootballFeaturedCard({
       : fixture.venue;
 
   return (
+    <View style={[styles.wrap, reserveDots && styles.wrapDots]}>
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.wrap,
-        reserveDots && styles.wrapDots,
-        pressed && { opacity: 0.94 },
-      ]}
+      style={({ pressed }) => [{ width: '100%' }, pressed && { opacity: 0.94 }]}
     >
       <CardChrome banner={featuredBanner(fixture)}>
         {leagueLogo ? (
@@ -355,9 +360,9 @@ export function FootballFeaturedCard({
           </View>
         </View>
 
-        {events.length > 0 ? (
+        {previewLines.length > 0 ? (
           <View style={styles.events}>
-            {events.map((line, i) => (
+            {previewLines.map((line, i) => (
               <Text key={`${i}-${line}`} style={styles.eventLine} numberOfLines={1}>
                 {line}
               </Text>
@@ -368,11 +373,30 @@ export function FootballFeaturedCard({
             {kickoffHint}
           </Text>
         ) : null}
+        {showEventsToggle ? (
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              setEventsOpen(true);
+            }}
+            style={styles.eventsMore}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t('hip4.featured.eventsMore')}
+          >
+            <Ionicons name="list-outline" size={14} color={colors.text.secondary} />
+            <Text style={styles.eventsMoreLabel}>{t('hip4.featured.eventsMore')}</Text>
+          </Pressable>
+        ) : null}
         {book ? (
           <Hip4BannerOdds book={book} catalog={catalog ?? []} onPressLeg={onPressLeg} />
         ) : null}
       </CardChrome>
     </Pressable>
+      {eventsOpen ? (
+        <MatchEventsSheet fixture={fixture} onClose={() => setEventsOpen(false)} />
+      ) : null}
+    </View>
   );
 }
 
@@ -684,6 +708,24 @@ const styles = StyleSheet.create({
   eventLine: {
     fontFamily: fonts.semibold,
     fontSize: 12,
+    color: colors.text.secondary,
+  },
+  eventsMore: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border.primary,
+    backgroundColor: colors.background.card,
+  },
+  eventsMoreLabel: {
+    fontFamily: fonts.extraBold,
+    fontSize: 11,
     color: colors.text.secondary,
   },
   kickoffHint: {

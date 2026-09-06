@@ -20,7 +20,7 @@ A production-style **Expo / React Native** app with a **FastAPI** backend:
 
 **Not included:** perpetual-futures UI, HIP-3, banking / cards, AI trading agents, legal advice, or store approval guarantees.
 
-HIP-4 venues are live on mainnet (`venue: "out"` in `outcomeMeta`). Sports listings may still be empty — show an empty state; do not fake a book from BTC dailies. See [docs/HIP4.md](./docs/HIP4.md).
+HIP-4 venues are live on mainnet (`venue: "out"` in `outcomeMeta`). If a sports filter is empty, show an empty state — do not fake a book from BTC dailies. See [docs/HIP4.md](./docs/HIP4.md).
 
 ---
 
@@ -33,7 +33,7 @@ Web (Vite + Privy)     ─┤
                         └──► Your backend (FastAPI)
                                   ├──► Supabase
                                   ├──► Arbitrum RPC + Bridge2 relayer
-                                  └──► API-Sports (optional)  EPL match chrome only — not odds
+                                  └──► API-Sports (optional)  football chrome (EPL / La Liga / Serie A / UEFA club) — not odds
 ```
 
 Orders and HIP-4 actions are signed on-device (agent key). The backend does **not** place outcome orders.
@@ -74,7 +74,7 @@ Database: apply the core tables on a **new** Supabase project — see **[docs/DA
 | [SETUP.md](./docs/SETUP.md) | Step-by-step infra setup |
 | [DATABASE.md](./docs/DATABASE.md) | Supabase tables for this app |
 | [HIP4.md](./docs/HIP4.md) | Outcome markets, venues, Outcome.xyz vs trade.xyz |
-| [SPORTS.md](./docs/SPORTS.md) | EPL featured banner (API-Sports chrome vs HIP-4 book) |
+| [SPORTS.md](./docs/SPORTS.md) | Football overlay + stadium crests (API-Sports chrome vs HIP-4 book) |
 | [HL_BUILDER.md](./docs/HL_BUILDER.md) | Builder fees, Bridge2, scaling |
 | [ENVIRONMENT.md](./docs/ENVIRONMENT.md) | Env vars |
 | [FORKING.md](./docs/FORKING.md) | Rebrand, builder address, strip leftovers |
@@ -93,11 +93,11 @@ New-chat bootstrap for agents: [`AGENT_PROMPT.md`](./AGENT_PROMPT.md).
 | Area | Status |
 |------|--------|
 | Privy login, Bridge2 wallet ↔ trade, relayer, push, rewards, onboarding | Working reference |
-| Outcome client (`hip4.ts`) | Working trader client — sports HIP-4 rows may still be empty |
-| Sports home / ticket / positions | Ticket + positions against live `outcomeMeta`; Home featured banner is EPL chrome ([SPORTS.md](./docs/SPORTS.md)) |
+| Outcome client (`hip4.ts`) | Working trader client — list live `outcomeMeta` (empty filter is OK) |
+| Sports home / ticket / positions | Against live `outcomeMeta`. Football **match** slides use stadium chrome ([SPORTS.md](./docs/SPORTS.md)) |
 | Perps / HIP-3 / banking / AI | **Out of scope** (some leftover dumps still exist; do not grow them) |
 
-This is a working trader UI. Sports *books* still depend on live `outcomeMeta` (empty is OK). The featured EPL card is match chrome, not a HIP-4 market.
+This is a working trader UI. Sports *books* still depend on live `outcomeMeta` (empty is OK). Featured football slides are those HIP-4 contest books plus overlay / synthetic crests — not a separate product.
 
 ---
 
@@ -106,8 +106,8 @@ This is a working trader UI. Sports *books* still depend on live `outcomeMeta` (
 ```
 hip4-app/
 ├── backend/
-│   ├── server.py              # FastAPI (wallet, rewards, push, geo)
-│   ├── sports_football.py     # EPL chrome proxy (optional API_SPORTS_KEY)
+│   ├── server.py              # FastAPI (wallet, rewards, push, geo, sports overlay)
+│   ├── sports_football.py     # EPL / La Liga / Serie A / UEFA club chrome (optional API_SPORTS_KEY)
 │   ├── rewards.py             # Points / referrals
 │   ├── supabase_schema.sql    # Historical dump — prefer DATABASE.md
 │   └── .env.example

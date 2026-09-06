@@ -1,7 +1,9 @@
 """API-Sports football v3 — match chrome only (not trading odds).
 
-EPL (39), La Liga (140), Serie A (135). The key stays on the server; the app
-never sees it. Odds / predictions endpoints are unused — price lives on HIP-4.
+Domestic: EPL (39), La Liga (140), Serie A (135).
+UEFA club: Champions League (2), Europa League (3), Conference League (848).
+The key stays on the server; the app never sees it. Odds / predictions
+endpoints are unused — price lives on HIP-4.
 """
 
 from __future__ import annotations
@@ -25,6 +27,9 @@ API_BASE = host_for("football")
 EPL_LEAGUE_ID = 39
 LALIGA_LEAGUE_ID = 140
 SERIE_A_LEAGUE_ID = 135
+UCL_LEAGUE_ID = 2
+UEL_LEAGUE_ID = 3
+UECL_LEAGUE_ID = 848
 LEAGUES: Dict[int, Dict[str, str]] = {
     EPL_LEAGUE_ID: {
         "name": "Premier League",
@@ -38,14 +43,27 @@ LEAGUES: Dict[int, Dict[str, str]] = {
         "name": "Serie A",
         "logo": "https://media.api-sports.io/football/leagues/135.png",
     },
+    UCL_LEAGUE_ID: {
+        "name": "UEFA Champions League",
+        "logo": "https://media.api-sports.io/football/leagues/2.png",
+    },
+    UEL_LEAGUE_ID: {
+        "name": "UEFA Europa League",
+        "logo": "https://media.api-sports.io/football/leagues/3.png",
+    },
+    UECL_LEAGUE_ID: {
+        "name": "UEFA Europa Conference League",
+        "logo": "https://media.api-sports.io/football/leagues/848.png",
+    },
 }
 LIVE_LEAGUE_IDS = "-".join(str(i) for i in LEAGUES)
 LIVE_TTL_SEC = 90.0
-NEXT_TTL_SEC = 180.0
-FINISHED_TTL_SEC = 180.0
+NEXT_TTL_SEC = 240.0
+FINISHED_TTL_SEC = 240.0
 EVENTS_TTL_SEC = 90.0
 REQUEST_TIMEOUT = 12.0
-EVENT_LIMIT = 4
+# One /fixtures/events call returns the whole match. Keep a payload cap only.
+EVENT_LIMIT = 80
 
 # https://www.api-football.com/documentation-v3#tag/Fixtures
 LIVE_SHORTS = frozenset({"1H", "2H", "HT", "ET", "BT", "P", "LIVE", "INT", "SUSP", "BREAK"})
@@ -54,6 +72,7 @@ PL_LOGO = LEAGUES[EPL_LEAGUE_ID]["logo"]
 _ENV_PATH = Path(__file__).parent / ".env"
 
 # Process-local first; shared JSON in `news_cache` key `sports:football:board`
+# League set: 39-140-135-2-3-848. Cache rejects boards missing leagueIds.
 # so N Railway replicas do not each spend API-Football on the same miss.
 # Phone → /api/sports/* does not count; only v3.football.api-sports.io calls do.
 _BOARD_CACHE_KEY = "sports:football:board"
@@ -92,6 +111,7 @@ def _empty_board(season: int, configured: bool) -> Dict[str, Any]:
     return {
         "configured": configured,
         "season": season,
+        "leagueIds": list(LEAGUES),
         "league": {
             "id": EPL_LEAGUE_ID,
             "name": "Premier League",
@@ -101,6 +121,14 @@ def _empty_board(season: int, configured: bool) -> Dict[str, Any]:
         "upcoming": [],
         "matches": [],
     }
+
+
+def _board_covers_leagues(board: Dict[str, Any]) -> bool:
+    raw = board.get("leagueIds")
+    if not isinstance(raw, list):
+        return False
+    have = {int(x) for x in raw if isinstance(x, (int, float, str)) and str(x).isdigit()}
+    return have == set(LEAGUES)
 
 
 def _lock_for(key: str) -> asyncio.Lock:
@@ -279,7 +307,7 @@ def _normalize_event(ev: Any) -> Optional[Dict[str, Any]]:
 
 
 async def _fetch_live() -> List[Dict[str, Any]]:
-    # live= must be hyphenated ids (39-140-135). Do not fall back to live=all —
+    # live= must be hyphenated ids. Do not fall back to live=all —
     # that spends a quota unit on every league worldwide.
     raw = await _get("/fixtures", {"live": LIVE_LEAGUE_IDS})
     rows = [n for n in (_normalize_fixture(x) for x in raw) if n and _is_tracked(n)]
@@ -366,7 +394,7 @@ async def _fetch_events(fixture_id: int) -> List[Dict[str, Any]]:
 
 
 async def _live_fixtures() -> List[Dict[str, Any]]:
-    return await _cached("fb:live", LIVE_TTL_SEC, _fetch_live)
+    return await _cached(f"fb:live:{LIVE_LEAGUE_IDS}", LIVE_TTL_SEC, _fetch_live)
 
 
 async def _events(fixture_id: int) -> List[Dict[str, Any]]:
@@ -431,15 +459,15 @@ async def _build_epl_board(season: int) -> Dict[str, Any]:
     try:
         live, upcoming_raw, finished = await asyncio.gather(
             _live_fixtures(),
-            _cached("fb:upcoming", NEXT_TTL_SEC, _fetch_upcoming),
-            _cached("fb:finished", FINISHED_TTL_SEC, _fetch_recent_finished),
+            _cached(f"fb:upcoming:{LIVE_LEAGUE_IDS}", NEXT_TTL_SEC, _fetch_upcoming),
+            _cached(f"fb:finished:{LIVE_LEAGUE_IDS}", FINISHED_TTL_SEC, _fetch_recent_finished),
         )
         upcoming = [r for r in upcoming_raw if not r.get("finished")]
     except (httpx.HTTPError, ValueError, TypeError) as exc:
         logger.warning("api-sports football board failed: %s", type(exc).__name__)
-        live = _cache_stale("fb:live") or []
-        upcoming = _cache_stale("fb:upcoming") or []
-        finished = _cache_stale("fb:finished") or []
+        live = _cache_stale(f"fb:live:{LIVE_LEAGUE_IDS}") or []
+        upcoming = _cache_stale(f"fb:upcoming:{LIVE_LEAGUE_IDS}") or []
+        finished = _cache_stale(f"fb:finished:{LIVE_LEAGUE_IDS}") or []
 
     featured = _pick_featured(live, upcoming)
     events: List[Dict[str, Any]] = []
@@ -453,6 +481,12 @@ async def _build_epl_board(season: int) -> Dict[str, Any]:
         featured = {**featured, "events": events}
 
     matches = _dedupe_fixtures([*live, *upcoming, *finished])
+    if featured and events:
+        fid = featured.get("fixtureId")
+        for row in matches:
+            if row.get("fixtureId") == fid:
+                row["events"] = events
+                break
     return {
         **_empty_board(season, True),
         "featured": featured,
@@ -475,7 +509,7 @@ async def get_epl_board() -> Dict[str, Any]:
         if isinstance(hit, dict):
             return hit
         shared = await asyncio.to_thread(_shared_board_get)
-        if isinstance(shared, dict) and shared.get("configured"):
+        if isinstance(shared, dict) and shared.get("configured") and _board_covers_leagues(shared):
             _cache_set("fb:board", shared, _BOARD_TTL_SEC)
             return shared
         stale = _cache_stale("fb:board")
@@ -489,3 +523,41 @@ async def get_epl_board() -> Dict[str, Any]:
         _cache_set("fb:board", board, _BOARD_TTL_SEC)
         await asyncio.to_thread(_shared_board_set, board)
         return board
+
+
+def _board_fixture_ids(board: Dict[str, Any]) -> set[int]:
+    ids: set[int] = set()
+    featured = board.get("featured")
+    if isinstance(featured, dict):
+        try:
+            ids.add(int(featured["fixtureId"]))
+        except (KeyError, TypeError, ValueError):
+            pass
+    for row in board.get("matches") or []:
+        if not isinstance(row, dict):
+            continue
+        try:
+            ids.add(int(row["fixtureId"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return {i for i in ids if i > 0}
+
+
+async def get_fixture_events(fixture_id: int) -> Dict[str, Any]:
+    """Full timeline for one board fixture. One upstream call, then TTL cache.
+
+    Opening the UI popup does not spend extra quota when this cache is warm.
+    Unknown / synthetic ids return an empty list (no worldwide scrape).
+    """
+    empty = {"fixtureId": fixture_id, "events": [], "configured": is_configured()}
+    if fixture_id <= 0 or not is_configured():
+        return empty
+    board = await get_epl_board()
+    if fixture_id not in _board_fixture_ids(board):
+        return empty
+    try:
+        events = await _events(fixture_id)
+    except (httpx.HTTPError, ValueError, TypeError) as exc:
+        logger.warning("api-sports football events lookup failed: %s", type(exc).__name__)
+        return empty
+    return {"fixtureId": fixture_id, "events": events, "configured": True}

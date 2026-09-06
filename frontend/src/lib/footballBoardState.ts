@@ -1,4 +1,4 @@
-/** Finished EPL / La Liga / Serie A fixtures from the overlay (not HIP-4 settle). */
+/** Finished overlay fixtures (not HIP-4 settle). */
 export type FinishedFootballRef = {
   home: string;
   away: string;

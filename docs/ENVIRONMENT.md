@@ -58,7 +58,7 @@ cp web/.env.example web/.env
 | Variable | Purpose |
 |----------|---------|
 | `FOREXRATE_KEY` | Display-currency rates → `forex_rates_cache` |
-| `API_SPORTS_KEY` | API-Football v3 key for Home EPL chrome. Server only. Details: [SPORTS.md](./SPORTS.md). |
+| `API_SPORTS_KEY` | API-Football v3 key for football overlay (EPL / La Liga / Serie A / UEFA club). Server only. Details: [SPORTS.md](./SPORTS.md). |
 | `APPLE_REVIEW_BYPASS` | `true` relaxes geo-fence for App Review |
 | `ENVIRONMENT` | Non-`production` enables some dev-only behavior |
 | `CORS_ORIGINS` | Extra browser origins (comma-separated). Local Vite (`http://localhost:5173`) and production (`https://orbcast.xyz`, `www`, `app`) are already in `server.py`. |

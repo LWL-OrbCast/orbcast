@@ -11,13 +11,20 @@ import {
   type ListedMarket,
   type OutcomeSide,
 } from '@hip4';
-import type { EplFixture } from '../lib/api';
+import {
+  canOpenFootballEvents,
+  formatFootballEvent,
+  previewFootballEvents,
+  type EplFixture,
+} from '../lib/api';
 import { interpolate, useCopy } from '../lib/copy';
 import { WEB_CHART_RANGES, type WebChartRangeId } from './chartRanges';
 import { formatEndDate, formatHms } from './formatTime';
 import { LEG_PALETTE, multiLegStampColor, multiLegStampGridClass, NO_COLOR, YES_COLOR } from './outcomeColors';
 import { ChartRangePills, ProbabilityChart, type ProbSeries } from './ProbabilityChart';
 import { RollingNumber } from './RollingNumber';
+import { IconList } from './icons';
+import { MatchEventsDialog } from './MatchEventsDialog';
 import { TeamCrest } from './TeamCrest';
 import bannerArsenalVilla from '../../../frontend/assets/images/symbols/featured-arsenal-villa.webp';
 import bannerStadium from '../../../frontend/assets/images/symbols/featured-banner.webp';
@@ -39,18 +46,6 @@ function scoreText(fixture: EplFixture): string {
   return `${home}  –  ${away}`;
 }
 
-function formatEvent(ev: NonNullable<EplFixture['events']>[number]): string {
-  const minute =
-    ev.elapsed == null
-      ? ''
-      : ev.extra != null
-        ? `${ev.elapsed}+${ev.extra}'`
-        : `${ev.elapsed}'`;
-  const who = ev.player || ev.team;
-  const what = ev.type === 'Card' ? ev.detail || ev.type : ev.type;
-  return [minute, who, what].filter(Boolean).join(' · ');
-}
-
 function formatKickoff(ms: number): string {
   return new Date(ms).toLocaleString(undefined, {
     weekday: 'short',
@@ -59,19 +54,6 @@ function formatKickoff(ms: number): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function useLgUp() {
-  const [lg, setLg] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const onChange = () => setLg(mq.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return lg;
 }
 
 function StatusPill({ label, live }: { label: string; live?: boolean }) {
@@ -311,8 +293,8 @@ export function EplFeatured({
   pager?: ReactNode;
 }) {
   const { hip4 } = useCopy();
-  const desktop = useLgUp();
   const [now, setNow] = useState(() => Date.now());
+  const [eventsOpen, setEventsOpen] = useState(false);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
@@ -321,7 +303,10 @@ export function EplFeatured({
 
   const showScore = fixture.live || fixture.finished;
   const mid = showScore ? scoreText(fixture) : '';
-  const events = (fixture.events ?? []).slice(-2).map(formatEvent).filter(Boolean);
+  const previewLines = previewFootballEvents(fixture.events)
+    .map(formatFootballEvent)
+    .filter(Boolean);
+  const showEventsToggle = canOpenFootballEvents(fixture);
   const startRemain =
     fixture.kickoffAt != null && fixture.kickoffAt > now
       ? Math.max(0, Math.ceil((fixture.kickoffAt - now) / 1000))
@@ -414,9 +399,9 @@ export function EplFeatured({
           </div>
         </div>
 
-        {events.length > 0 ? (
+        {previewLines.length > 0 ? (
           <ul className="min-h-9 space-y-0.5 text-center text-xs font-semibold text-[var(--text-2)]">
-            {events.map((line) => (
+            {previewLines.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
@@ -426,10 +411,27 @@ export function EplFeatured({
           </p>
         ) : null}
       </Link>
+      {showEventsToggle ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setEventsOpen(true);
+          }}
+          className="relative z-10 mt-1.5 inline-flex items-center gap-1.5 self-center rounded-full border border-[var(--border)] bg-white/90 px-2.5 py-1 text-[11px] font-extrabold text-[var(--text-2)] hover:border-[var(--accent)]/40 hover:text-[var(--accent-dark)]"
+        >
+          <IconList size={13} />
+          {hip4.featured.eventsMore}
+        </button>
+      ) : null}
       {book ? <Hip4BannerOdds book={book} catalog={catalog} /> : null}
+      {eventsOpen ? (
+        <MatchEventsDialog fixture={fixture} onClose={() => setEventsOpen(false)} />
+      ) : null}
       </div>
       </div>
-      {book && desktop ? <EplDesktopBook book={book} catalog={catalog} /> : null}
+      {book ? <EplDesktopBook book={book} catalog={catalog} /> : null}
       {pager ? <div className="flex justify-end px-4 pb-4 sm:px-6">{pager}</div> : null}
     </div>
   );

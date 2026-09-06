@@ -36,6 +36,10 @@ const SYMBOL_SOURCE: Record<MarketSymbolKey, ImageSourcePropType> = {
   madrid: require('../../../assets/images/symbols/madrid.webp'),
   mancity: require('../../../assets/images/symbols/mancity.webp'),
   manutd: require('../../../assets/images/symbols/manutd.webp'),
+  marseille: require('../../../assets/images/symbols/marseille-icon.webp'),
+  slovan: require('../../../assets/images/symbols/slovan-logo.webp'),
+  lask: require('../../../assets/images/symbols/lask-icon.webp'),
+  viking: require('../../../assets/images/symbols/viking-icon.webp'),
 };
 
 type BoxProps = {

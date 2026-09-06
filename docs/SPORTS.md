@@ -2,7 +2,7 @@
 
 Price, depth, tape, and settlement stay on **Hyperliquid HIP-4**. API-Sports is only *who is playing and what the score is*.
 
-There is **no** `outcomeId` ↔ `fixtureId` join yet. Home lists live HIP-4 books as-is. Do not invent a football market from a BTC daily.
+HIP-4 sports templates (`out` / `txyz`) publish `participantA` / `participantB`, `scheduledStart`, and `competition` — **not** an API-Sports `fixtureId`. Overlay rows join on those fields (names + kickoff, competition as a tie-break). Do not invent a football market from a BTC daily.
 
 **Football (soccer) and NFL are different sports.** Catalog chip `football` is association football (API-Sports FOOTBALL). Chip `nfl` is American football (API-Sports NFL / `v1.american-football`). HIP-4 `sport:football/soccer` → Football; `sport:football` + NFL competition → NFL.
 
@@ -14,7 +14,7 @@ HIP-4 titles land on chips in `frontend/src/lib/sportsCatalog.ts`. Overlay hosts
 
 | Chip | API-Sports product | Host | Overlay today |
 |------|--------------------|------|----------------|
-| Football | FOOTBALL | `v3.football.api-sports.io` | EPL + La Liga + Serie A stadium chrome |
+| Football | FOOTBALL | `v3.football.api-sports.io` | EPL + La Liga + Serie A + UEFA club (UCL / UEL / UECL) stadium chrome |
 | NFL | NFL | `v1.american-football.api-sports.io` | none |
 | NBA | NBA | `v2.nba.api-sports.io` | none |
 | Basketball | BASKETBALL | `v1.basketball.api-sports.io` | none |
@@ -36,13 +36,13 @@ Odds, predictions, and in-play prices from API-Sports are **not** called. HIP-4 
 
 **Top Events** (All) is a HIP-4 mix: one lead per chip, then the five most urgent of those (ending soon → upcoming kickoff → live → long-dated last). Chip list order does not reserve a slot — a near Fed book beats a season NFL book. The pager auto-advances (~6.5s fill on the active pill, bottom-right); dots stay clickable. Named chips stay in that category.
 
-Football contest slides (`FeaturedMatchCard` / web `EplFeatured`) use stadium chrome — banner, crests, countdown / score. That is every **match** book (two clubs), not season winners. `GET /api/sports/football/epl` now returns EPL + La Liga + Serie A fixtures (`matches`); there is still no `outcomeId` ↔ `fixtureId` join — books match fixtures by team names.
+Football contest slides (`FeaturedMatchCard` / web `EplFeatured`) use stadium chrome — banner, crests, countdown / score. That is every **match** book (two clubs), not season winners. `GET /api/sports/football/epl` returns EPL + La Liga + Serie A + UEFA club fixtures (`matches`). Books match fixtures by `participantA`/`B` + `scheduledStart` (competition breaks ties). No `fixtureId` exists on-chain.
 
 | State | UI |
 |-------|----|
 | Football contest, fixture on the board | Crests, score, minute / HT / FT |
 | Football contest, upcoming | Same chrome with countdown |
-| Football contest, no API row | Stadium + HIP-4 names / `startsAt`; crests from the static team-id map (`media.api-sports.io`, no quota) |
+| Football contest, no API row | Stadium + HIP-4 names / `startsAt`; crests from the static team-id map (`media.api-sports.io`, no quota). Marseille / Slovan / LASK / Viking use bundled `symbols/` art |
 | Key missing (Expo Football chip, empty) | UEFA stub (Madrid / City art) |
 | Key set, no fixture and no books | “No upcoming football match” |
 | All chip | Mix slider; football **matches** still get stadium chrome |
@@ -61,7 +61,7 @@ Arsenal vs Aston Villa uses `frontend/assets/images/symbols/featured-arsenal-vil
 | Module | `backend/sports_football.py` |
 | Route | `GET /api/sports/football/epl` on `api_router` |
 | Upstream | [API-Football v3](https://www.api-football.com/documentation-v3) · `https://v3.football.api-sports.io` · header `x-apisports-key` |
-| Leagues | Premier League **39**, La Liga **140**, Serie A **135** |
+| Leagues | Premier League **39**, La Liga **140**, Serie A **135**, Champions League **2**, Europa League **3**, Conference League **848** |
 | Key | `API_SPORTS_KEY` on the **server only** — never `EXPO_PUBLIC_*` |
 
 ### What one “request” is
@@ -72,14 +72,14 @@ This app’s cache-miss spend (phones hit our backend only; logos on `media.api-
 
 | Window | Upstream |
 |--------|----------|
-| Always | `GET /fixtures?live=39-140-135` (hyphenated ids — a lone `live=39` is rejected) |
-| Upcoming | `GET /fixtures?league={39\|140\|135}&season=…&next=10` (Pro, 3 calls, 180s TTL). If a league’s `next=` is empty, that league only: `date=today` |
-| Finished | `GET /fixtures?league={39\|140\|135}&season=…&last=10` (3 calls, 180s TTL). FT games drop off `live=` immediately — this is how the catalog knows to hide them |
-| Live featured | `GET /fixtures/events?fixture=…` for the featured live game only |
+| Always | `GET /fixtures?live=39-140-135-2-3-848` (hyphenated ids — a lone `live=39` is rejected) |
+| Upcoming | `GET /fixtures?league={39\|140\|135\|2\|3\|848}&season=…&next=10` (Pro, 6 calls, 240s TTL). If a league’s `next=` is empty, that league only: `date=today` |
+| Finished | `GET /fixtures?league={39\|140\|135\|2\|3\|848}&season=…&last=10` (6 calls, 240s TTL). FT games drop off `live=` immediately — this is how the catalog knows to hide them |
+| Live featured | `GET /fixtures/events?fixture=…` — **one call returns the whole timeline** (goals, cards, subs). We keep every event (cap 80). The stadium card still previews the last 2; **All events** opens the rest. Other board fixtures fetch the same endpoint on demand (cached 90s). |
 
-Do **not** call `live=all` (whole-world live list). TTL is ~90s for the board / live / events, ~180s for upcoming and finished. The composed board is shared in Supabase `news_cache` (`sports:football:board`) so every replica reads the same payload.
+Do **not** call `live=all` (whole-world live list). TTL is ~90s for the board / live / events, ~240s for upcoming and finished. The composed board is shared in Supabase `news_cache` (`sports:football:board`) so every replica reads the same payload.
 
-Quiet day upper bound (one replica, cache working): ~1 live check / 90s ≈ 960/day, plus 3 upcoming + 3 finished refreshes every 180s ≈ 2.9k/day → **~3.8k**. Live featured: live + events every 90s ≈ **~4.8k**. Pro is 7,500/day / 300/min.
+Quiet day upper bound (one replica, cache working): ~1 live check / 90s ≈ 960/day, plus 6 upcoming + 6 finished refreshes every 240s ≈ 4.3k/day → **~5.3k**. Live featured: live + events every 90s ≈ **~6.2k**. Pro is 7,500/day / 300/min. Do not add more football leagues without checking that headroom.
 
 **API-Sports `finished` is not HIP-4 `settled`.** `status.short` `FT` / `AET` / `PEN` / `AWD` / `WO` means the match is over. The Outcome / Hyperliquid book stays `open` until the venue calls `settleQuestion2` (event markets, validator vote — Outcome targets resolution within ~4 hours, and the contest template fixes the official result one hour after full-time). Home, Markets, search, featured, and trending hide football **contest** books that match a finished overlay fixture, **or** whose kickoff is already in the past and the overlay no longer lists them as live/upcoming (so All does not keep starring a FT book). Positions and a direct `/market/:id` stay reachable. We do not invent settlement.
 
@@ -100,7 +100,7 @@ Do **not** add a dedicated sports table. Later overlays can reuse other `news_ca
 | `frontend/src/lib/sportsCatalog.ts` | Chip ids, HIP-4 `sport` → chip, API-Sports hosts |
 | `frontend/src/lib/sportsFootball.ts` | Types + `fetchEplBoard()` via existing `api` axios |
 | `frontend/src/lib/footballChrome.ts` | Board `matches` + HIP-4 synthetic fixture (Vite-safe) |
-| `frontend/src/lib/footballTeamLogos.ts` | Name → API-Sports team id for synthetic crests |
+| `frontend/src/lib/footballTeamLogos.ts` | Name → API-Sports team id or bundled `symbols/` crest (`local:…`) |
 | `frontend/src/components/sports/FeaturedMatchCard.tsx` | Mobile stadium banner |
 | `frontend/app/index.tsx` | Pull-to-refresh invalidates `['sports', 'football', 'epl']` |
 | `web/src/ui/EplFeatured.tsx` | Desktop stadium banner for football contest slides |

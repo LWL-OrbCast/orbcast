@@ -14,7 +14,7 @@ npx expo start --dev-client   # requires a dev build (Privy + native modules)
 
 | Path | Purpose |
 |------|---------|
-| `app/` | Expo Router — sports stubs, wallet, rewards |
+| `app/` | Expo Router — home, markets, ticket, positions, wallet, rewards |
 | `src/lib/hip4.ts` | HIP-4 client |
 | `src/lib/hlKernel.ts` | Agent / builder / withdraw (extract next) |
 | `src/providers/` | Privy auth, builder config |

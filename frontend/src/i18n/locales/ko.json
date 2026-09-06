@@ -807,7 +807,11 @@
         "ht": "전반",
         "ft": "후반",
         "minute": "{{n}}'",
-        "none": "예정된 프리미어리그 경기가 없습니다"
+        "none": "예정된 프리미어리그 경기가 없습니다",
+        "events": "경기 이벤트",
+        "eventsMore": "모든 이벤트",
+        "eventsEmpty": "아직 이벤트가 없습니다",
+        "eventsLoadError": "이벤트를 불러오지 못했습니다"
       },
       "ticket": {
         "back": "시장",
@@ -836,6 +840,8 @@
         "sharesAt": " {{name}} 지분 · ",
         "capHint": "보유한 모든 {{held}} {{name}}을 매도{{value}}. No는 매수하지 않습니다.",
         "settled": "시장 정산 완료",
+        "matchFinished": "경기 종료",
+        "matchFinishedHint": "정산이 끝날 때까지 마켓은 열려 있습니다.",
         "closeAll": "모든 {{name}} 청산",
         "sellName": "{{name}} 매도",
         "buyName": "{{name}} 매수",

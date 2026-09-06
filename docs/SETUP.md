@@ -202,13 +202,13 @@ Core wallet / deposit still works without it.
 
 ---
 
-## 10. Optional — EPL featured banner
+## 10. Optional — football stadium chrome
 
 Set `API_SPORTS_KEY` on the **backend** (API-Football v3). Never put it in Expo.
 
-`GET /api/sports/football/epl` should return `"configured": true`. Home then shows live Premier League chrome (score, minute, crests). Without the key, Home keeps the UEFA stub.
+`GET /api/sports/football/epl` should return `"configured": true`. Home then scores / minutes / overlay crests for **EPL + La Liga + Serie A + UEFA club** (UCL / UEL / UECL). Football contest books still get stadium chrome without a fixture (HIP-4 names + static / bundled crests). Without the key, the Expo Football chip empty state keeps the UEFA stub.
 
-This is **not** a HIP-4 book. Full notes: [SPORTS.md](./SPORTS.md).
+Overlay fixtures are **not** the HIP-4 book. Full notes: [SPORTS.md](./SPORTS.md).
 
 ---
 
@@ -277,9 +277,9 @@ Do not import `frontend/src/lib/hyperliquid.ts`, `@privy-io/expo`, or Expo UI in
 - [ ] USDC wallet → trade via Bridge2
 - [ ] Push on deposit (if Firebase is wired)
 - [ ] `GET /api/builder-config` returns your builder address
-- [ ] Sports home loads (empty HIP-4 sports list is OK)
+- [ ] Sports home loads live HIP-4 rows (empty filter is OK — do not invent a book)
 - [ ] Optional: `cd web && npm run dev` — catalog at localhost:5173; Privy origin includes 5173
-- [ ] Optional: with `API_SPORTS_KEY`, featured banner shows a real EPL fixture (or the empty EPL card)
+- [ ] Optional: with `API_SPORTS_KEY`, football match slides show overlay score / crests when the book matches a board fixture
 
 ---
 

@@ -19,11 +19,25 @@ export type {
 export {
   boardFixtures,
   boardHasLiveFixture,
+  canOpenFootballEvents,
   catalogFootballFixtures,
   footballChromeFixture,
   footballLeagueFromCompetition,
+  formatFootballEvent,
+  previewFootballEvents,
   syntheticFootballFixture,
 } from './footballChrome';
+
+export type FootballEventsPayload = {
+  fixtureId: number;
+  events: FootballEvent[];
+  configured?: boolean;
+};
+
+export async function fetchFootballEvents(fixtureId: number): Promise<FootballEventsPayload> {
+  const { data } = await api.get<FootballEventsPayload>(`/sports/football/events/${fixtureId}`);
+  return data;
+}
 
 /** @deprecated Use FootballBoard — same `/sports/football/epl` payload. */
 export type EplBoard = FootballBoard;
@@ -39,18 +53,6 @@ export function isTodaysEplFixture(fixture: FootballFixture, now = Date.now()): 
   if (fixture.finished) return false;
   if (fixture.live) return true;
   return isTimestampOnLocalDay(fixture.kickoffAt, now);
-}
-
-export function formatFootballEvent(ev: FootballEvent): string {
-  const minute =
-    ev.elapsed == null
-      ? ''
-      : ev.extra != null
-        ? `${ev.elapsed}+${ev.extra}'`
-        : `${ev.elapsed}'`;
-  const who = ev.player || ev.team;
-  const what = ev.type === 'Card' ? ev.detail || ev.type : ev.type;
-  return [minute, who, what].filter(Boolean).join(' · ');
 }
 
 export function formatKickoff(ms: number): string {

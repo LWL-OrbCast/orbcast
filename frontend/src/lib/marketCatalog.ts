@@ -237,6 +237,36 @@ function teamKeys(name: string): string[] {
     keys.add('bayernmunich');
     keys.add('fcbayernmunich');
   }
+  if (/sabah/.test(s)) {
+    keys.add('sabah');
+    keys.add('sabahbaku');
+  }
+  if (/aekathens/.test(s)) keys.add('aekathens');
+  if (/sturmgraz/.test(s)) {
+    keys.add('sturmgraz');
+    keys.add('sksturmgraz');
+  }
+  if (/austriawien|austriavienna/.test(s)) {
+    keys.add('austriawien');
+    keys.add('austriavienna');
+  }
+  if (/marseille/.test(s)) {
+    keys.add('marseille');
+    keys.add('olympiquemarseille');
+    keys.add('olympiquedemarseille');
+  }
+  if (/slovanbratislava/.test(s)) {
+    keys.add('slovanbratislava');
+    keys.add('skslovanbratislava');
+  }
+  if (/^lask$|^lasklinz$/.test(s)) {
+    keys.add('lask');
+    keys.add('lasklinz');
+  }
+  if (/^viking$|^vikingfk$/.test(s)) {
+    keys.add('viking');
+    keys.add('vikingfk');
+  }
   return [...keys].filter(Boolean);
 }
 
@@ -290,20 +320,67 @@ export function isFootballContestMarket(m: ListedMarket): boolean {
   return sportOnlyChipForMarket(m) === 'football' && contestParticipants(m) != null;
 }
 
-export function fixtureForMarket<T extends { home: { name: string }; away: { name: string } }>(
-  fixtures: readonly T[],
-  m: ListedMarket,
-): T | null {
-  for (const f of fixtures) {
-    if (marketMatchesFixture(m, f.home.name, f.away.name)) return f;
+const KICKOFF_ALIGN_MS = 3 * 60 * 60 * 1000;
+
+function bookKickoffMs(m: ListedMarket): number | null {
+  const f = marketSpecFields(m);
+  return m.startsAt ?? parseOutcomeDateTime(f.scheduledStart ?? f.time ?? '') ?? null;
+}
+
+function competitionAligns(book: string, league: string): boolean {
+  const a = book.toLowerCase();
+  const b = league.toLowerCase();
+  if (!a.trim() || !b.trim()) return false;
+  if (a.includes(b) || b.includes(a)) return true;
+  if (/champions|\bucl\b/.test(a) && /champions|\bucl\b/.test(b)) return true;
+  if (/conference|\buecl\b/.test(a) && /conference|\buecl\b/.test(b)) return true;
+  if (/europa|\buel\b/.test(a) && /europa|\buel\b/.test(b) && !/conference/.test(a + b)) {
+    return true;
   }
-  return null;
+  if (/\bepl\b|premier/.test(a) && /\bepl\b|premier/.test(b)) return true;
+  if (/la\s*liga|laliga/.test(a) && /la\s*liga|laliga/.test(b)) return true;
+  if (/serie\s*a/.test(a) && /serie\s*a/.test(b)) return true;
+  return false;
+}
+
+/** Name pair required. Kickoff + competition break ties (no fixtureId on HIP-4). */
+export function fixtureForMarket<
+  T extends {
+    home: { name: string };
+    away: { name: string };
+    kickoffAt?: number | null;
+    league?: { name?: string };
+  },
+>(fixtures: readonly T[], m: ListedMarket): T | null {
+  const kickoff = bookKickoffMs(m);
+  const competition = marketSpecFields(m).competition ?? '';
+  let best: T | null = null;
+  let bestScore = 0;
+  for (const f of fixtures) {
+    if (!marketMatchesFixture(m, f.home.name, f.away.name)) continue;
+    let score = 1000;
+    const fxKick = f.kickoffAt ?? null;
+    if (kickoff != null && fxKick != null) {
+      const dt = Math.abs(kickoff - fxKick);
+      if (dt <= 30 * 60 * 1000) score += 400;
+      else if (dt <= KICKOFF_ALIGN_MS) score += 200;
+      else score -= 300;
+    }
+    if (competitionAligns(competition, f.league?.name ?? '')) score += 150;
+    if (score > bestScore) {
+      best = f;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 type CatalogFixture = {
   home: { name: string };
   away: { name: string };
   finished?: boolean;
+  kickoffAt?: number | null;
+  league?: { name?: string };
 };
 
 /**
@@ -318,9 +395,30 @@ export function isFinishedFootballContest(
   fixtures?: CatalogFixture[] | null,
 ): boolean {
   if (!isFootballContestMarket(m)) return false;
-  const finished = (fixtures ?? [])
-    .filter((f) => f.finished)
-    .map((f) => ({ home: f.home.name, away: f.away.name }));
+  const openRows = (fixtures ?? []).filter((f) => !f.finished);
+  const doneRows = (fixtures ?? []).filter((f) => f.finished);
+  // In-play / upcoming on the board — name pair is enough. Kickoff scoring
+  // is only a tie-break; do not drop a live book because clocks disagree.
+  if (
+    fixtures &&
+    openRows.some((f) => marketMatchesFixture(m, f.home.name, f.away.name))
+  ) {
+    return false;
+  }
+  if (fixtures) {
+    const openHit = fixtureForMarket(openRows, m);
+    if (openHit) return false;
+    const doneHit = fixtureForMarket(doneRows, m);
+    if (doneHit) {
+      const kick = bookKickoffMs(m);
+      const fx = doneHit.kickoffAt ?? null;
+      if (kick == null || fx == null || Math.abs(kick - fx) <= KICKOFF_ALIGN_MS) {
+        return true;
+      }
+    }
+  }
+
+  const finished = doneRows.map((f) => ({ home: f.home.name, away: f.away.name }));
   const seen = new Set(finished.map((f) => `${f.home}\0${f.away}`));
   for (const f of rememberedFinishedFootball()) {
     const k = `${f.home}\0${f.away}`;
@@ -328,14 +426,17 @@ export function isFinishedFootballContest(
     seen.add(k);
     finished.push(f);
   }
-  if (finished.some((f) => marketMatchesFixture(m, f.home, f.away))) return true;
+  const kickoffPast = m.startsAt != null && m.startsAt <= Date.now();
+  const namedFt = finished.some((f) => marketMatchesFixture(m, f.home, f.away));
+  // Name-only FT memory must not hide an in-play book (same clubs rematch, or
+  // leftover FT names while the overlay missed the live row).
+  if (namedFt && m.status !== 'live' && (fixtures == null || kickoffPast)) {
+    return true;
+  }
 
   if (fixtures == null) return false;
-  const stillOn = fixtures.some(
-    (f) => !f.finished && marketMatchesFixture(m, f.home.name, f.away.name),
-  );
-  if (stillOn) return false;
-  return m.startsAt != null && m.startsAt <= Date.now();
+  if (m.status === 'live') return false;
+  return kickoffPast;
 }
 
 /** HIP-4 contest whose two sides are this fixture (order-independent). */

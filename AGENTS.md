@@ -41,7 +41,7 @@ Do not rename the catalog view to `'live'`. That string already means in-play on
 | [README.md](./README.md) | Orientation |
 | [AGENT_PROMPT.md](./AGENT_PROMPT.md) | First-sprint order + HIP-4 facts to re-verify |
 | [docs/HIP4.md](./docs/HIP4.md) | Venues, Outcome.xyz vs trade.xyz |
-| [docs/SPORTS.md](./docs/SPORTS.md) | Football overlay (EPL / La Liga / Serie A): API-Sports chrome, quota, key stays on server |
+| [docs/SPORTS.md](./docs/SPORTS.md) | Football overlay (EPL / La Liga / Serie A / UEFA club): API-Sports chrome, quota, key stays on server |
 | [docs/SETUP.md](./docs/SETUP.md) | Local / deploy bootstrap |
 | [docs/DATABASE.md](./docs/DATABASE.md) | Which tables this app uses |
 | [docs/HL_BUILDER.md](./docs/HL_BUILDER.md) | Builder fee, Bridge2 |
@@ -73,11 +73,12 @@ Do not rename the catalog view to `'live'`. That string already means in-play on
 
 ```
 frontend/                 Expo Router app
-  app/                    Sports stubs, login, profile, rewards, legal
+  app/                    Home, markets, ticket, positions, login, profile, rewards, legal
   src/lib/hip4.ts         HIP-4 client — start here for markets
   src/lib/hlEndpoints.ts  Pure HL URLs (Vite-safe)
   src/lib/hip4Runtime.ts  registerHip4Runtime — Expo kernel vs web IndexedDB
-  src/lib/sportsFootball.ts  EPL board client (backend proxy)
+  src/lib/sportsFootball.ts  Football board client (backend proxy)
+  src/lib/footballTeamLogos.ts  Synthetic + local stadium crests
   src/lib/sportsCatalog.ts   Catalog chips + API-Sports hosts
   src/lib/hlKernel.ts     Agent / builder / withdraw (extract next)
   src/lib/hyperliquid.ts  Wallet / agent / withdraw / unified USDC (no perp orders)
@@ -86,7 +87,7 @@ frontend/                 Expo Router app
 web/                      Vite + React 19 desktop app (port 5173)
 backend/
   server.py               FastAPI — wallet, rewards, push, geo, sports overlay
-  sports_football.py      API-Sports football chrome — EPL / La Liga / Serie A (not odds)
+  sports_football.py      API-Sports football chrome — EPL / La Liga / Serie A / UEFA club (not odds)
   rewards.py              Points / referrals
 docs/                     Human + agent documentation
 ```
@@ -112,7 +113,7 @@ Large single module. Jump by route prefix (`/api/health`, `/api/sports/football/
 7. **DB** — follow [DATABASE.md](./docs/DATABASE.md). Do not invent tables that fight deny-all RLS.
 8. **Relayer** — new EOAs for this app. Do not reuse another product’s relayer keys (nonce wars).
 9. **Trust live `outcomeMeta`** — do not hardcode docs deployer addresses. `settleQuestion` was replaced by `settleQuestion2`.
-10. **Sports chrome ≠ the book** — API-Sports is fixtures/score only (EPL / La Liga / Serie A). Soccer and NFL are different products (`sportsCatalog.ts` / `sports_api.py`). Do not show their odds next to HIP-4 mids. Key is `API_SPORTS_KEY` on the server; never Expo. Overlay `finished` (`FT` etc.) hides contest books from discovery lists; it is **not** HIP-4 settlement. See [SPORTS.md](./docs/SPORTS.md).
+10. **Sports chrome ≠ the book** — API-Sports is fixtures/score only (EPL / La Liga / Serie A / UEFA club). Soccer and NFL are different products (`sportsCatalog.ts` / `sports_api.py`). Do not show their odds next to HIP-4 mids. Key is `API_SPORTS_KEY` on the server; never Expo. Overlay `finished` (`FT` etc.) hides contest books from discovery lists; it is **not** HIP-4 settlement. See [SPORTS.md](./docs/SPORTS.md).
 
 ---
 
@@ -123,7 +124,7 @@ Large single module. Jump by route prefix (`/api/health`, `/api/sports/football/
 - [Deployer actions](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/hip-4-deployer-actions)
 - [Outcome.xyz architecture](https://docs.outcome.xyz/outcome-architecture) — venue **OUT**, not trade.xyz
 
-Watch API announcements. Re-probe `outcomeMeta`; sports rows may still be empty.
+Watch API announcements. Re-probe `outcomeMeta`. If a sports filter is empty, show empty state — do not invent a book.
 
 ---
 

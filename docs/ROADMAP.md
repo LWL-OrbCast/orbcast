@@ -1,6 +1,6 @@
 # Roadmap
 
-Wallet, auth, Bridge2, relayer, push, rewards, and the HIP-4 ticket work. Sports *books* still follow live `outcomeMeta` (may be empty).
+Wallet, auth, Bridge2, relayer, push, rewards, and the HIP-4 ticket work. Sports *books* follow live `outcomeMeta` (empty filter is OK).
 
 ---
 
@@ -17,17 +17,17 @@ Wallet, auth, Bridge2, relayer, push, rewards, and the HIP-4 ticket work. Sports
 | Outcome client | `frontend/src/lib/hip4.ts` — list, ticket, positions |
 | Sports home / ticket / positions | Against live `outcomeMeta`; catalog chips All → Crypto → Stocks → Economics → sports. Stocks = HIP-4 books whose oracle is a HIP-3 coin (`xyz:SNDK`), not HIP-3 trading. |
 | Vite web (`web/`) | Desktop catalog / ticket / positions / wallet / rewards |
-| EPL featured banner | Optional `API_SPORTS_KEY` — chrome only ([SPORTS.md](./SPORTS.md)) |
+| Home featured slider | `FeaturedEventSlider` / web mix — football **matches** get stadium chrome |
+| Football overlay | Optional `API_SPORTS_KEY` — EPL + La Liga + Serie A + UEFA club score/crests; unmatched contests use the static / bundled crest map ([SPORTS.md](./SPORTS.md)) |
+| Shared sports cache | `news_cache` key `sports:football:board` |
 
 ---
 
 ## Next
 
-1. **Sports join** — map HIP-4 `outcomeId` to a fixture when sports books exist; featured tap should open that book, not “first live crypto”.
-2. **Home featured slider (mobile)** — done (`FeaturedEventSlider`). All mixes up to 5 categories.
-3. **Kernel extract** — move agent / builder / withdraw into `hlKernel.ts`; delete leftover perp dump.
-4. **Backend prune** — drop unused market-data helpers from `server.py`.
-5. **Shared sports cache** — done (`news_cache` key `sports:epl:board`). Keep other leagues on the same pattern if you add them.
+1. **Sports join** — HIP-4 has no `fixtureId`. Overlay matches `participantA`/`B` + `scheduledStart` (competition as a tie-break). Featured tap already opens that HIP-4 contest book.
+2. **Kernel extract** — move agent / builder / withdraw into `hlKernel.ts`; delete leftover perp dump.
+3. **Backend prune** — drop unused market-data helpers from `server.py`.
 
 ---
 

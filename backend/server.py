@@ -55,7 +55,7 @@ from rewards import (
     TIERS,
     ApplyReferralRequest,
 )
-from sports_football import configure_sports_store, get_epl_board
+from sports_football import configure_sports_store, get_epl_board, get_fixture_events
 
 import privy_import
 import _ur_compat as ur_api
@@ -1894,6 +1894,12 @@ async def version():
 async def sports_football_epl():
     """Football match chrome — EPL / La Liga / Serie A (API-Sports). Not trading odds."""
     return await get_epl_board()
+
+
+@api_router.get("/sports/football/events/{fixture_id}")
+async def sports_football_events(fixture_id: int):
+    """Full match timeline for a board fixture. One API-Sports call, cached."""
+    return await get_fixture_events(fixture_id)
 
 
 def _parse_semver(v: Optional[str]) -> tuple:

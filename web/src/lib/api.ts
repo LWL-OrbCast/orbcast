@@ -4,15 +4,19 @@ import { rememberFootballBoard } from '../../../frontend/src/lib/footballBoardSt
 import {
   boardFixtures,
   type FootballBoard,
+  type FootballEvent,
   type FootballFixture,
 } from '../../../frontend/src/lib/footballChrome';
 
-export type { FootballBoard, FootballFixture } from '../../../frontend/src/lib/footballChrome';
+export type { FootballBoard, FootballEvent, FootballFixture } from '../../../frontend/src/lib/footballChrome';
 export {
   boardFixtures,
   boardHasLiveFixture,
+  canOpenFootballEvents,
   catalogFootballFixtures,
   footballChromeFixture,
+  formatFootballEvent,
+  previewFootballEvents,
 } from '../../../frontend/src/lib/footballChrome';
 
 export type BuilderConfig = {
@@ -62,6 +66,16 @@ export async function fetchEplBoard() {
   const data = await api<EplBoard>('/sports/football/epl');
   rememberFootballBoard(boardFixtures(data));
   return data;
+}
+
+export type FootballEventsPayload = {
+  fixtureId: number;
+  events: FootballEvent[];
+  configured?: boolean;
+};
+
+export async function fetchFootballEvents(fixtureId: number) {
+  return api<FootballEventsPayload>(`/sports/football/events/${fixtureId}`);
 }
 
 export function isTodaysEplFixture(fixture: EplFixture, now = Date.now()): boolean {

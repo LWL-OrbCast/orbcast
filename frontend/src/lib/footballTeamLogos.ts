@@ -1,10 +1,20 @@
 /**
- * API-Sports club crests for stadium chrome when the overlay has no fixture.
- * `media.api-sports.io` does not count against the football quota.
+ * Club crests for stadium chrome when the overlay has no fixture.
+ * API-Sports ids use `media.api-sports.io` (no football quota).
+ * A few UEFA clubs use bundled `assets/images/symbols/` art (`local:…`)
+ * because their CDN slot is empty or unverified.
  */
 import { teamMatchScore } from './marketCatalog';
 
 const media = (id: number) => `https://media.api-sports.io/football/teams/${id}.png`;
+
+export const LOCAL_FOOTBALL_CREST_PREFIX = 'local:';
+
+export function localFootballCrestKey(logo: string): string | null {
+  if (!logo.startsWith(LOCAL_FOOTBALL_CREST_PREFIX)) return null;
+  const key = logo.slice(LOCAL_FOOTBALL_CREST_PREFIX.length);
+  return key || null;
+}
 
 /** API-Football team ids — persistent across competitions. */
 const TEAMS: { id: number; names: string[] }[] = [
@@ -53,6 +63,9 @@ const TEAMS: { id: number; names: string[] }[] = [
   { id: 727, names: ['Osasuna'] },
   { id: 728, names: ['Rayo Vallecano', 'Rayo'] },
   { id: 798, names: ['Mallorca', 'Real Mallorca'] },
+  { id: 797, names: ['Elche', 'Elche CF'] },
+  { id: 539, names: ['Levante', 'Levante UD'] },
+  { id: 718, names: ['Oviedo', 'Real Oviedo'] },
   { id: 534, names: ['Las Palmas'] },
   { id: 537, names: ['Leganes'] },
 
@@ -79,10 +92,10 @@ const TEAMS: { id: number; names: string[] }[] = [
   { id: 895, names: ['Como'] },
   { id: 1579, names: ['Monza'] },
 
-  // UEFA (synthetic chrome only — we do not fetch those fixtures)
+  // UEFA club names — overlay now fetches UCL / UEL / UECL fixtures;
+  // this map still fills crests when the board misses a side.
   { id: 79, names: ['Lille', 'LOSC', 'LOSC Lille'] },
   { id: 80, names: ['Lyon', 'Olympique Lyonnais'] },
-  { id: 81, names: ['Marseille', 'Olympique Marseille'] },
   { id: 85, names: ['Paris Saint Germain', 'PSG'] },
   { id: 91, names: ['Monaco', 'AS Monaco'] },
   { id: 116, names: ['Lens', 'RC Lens'] },
@@ -102,35 +115,57 @@ const TEAMS: { id: number; names: string[] }[] = [
   { id: 247, names: ['Celtic'] },
   { id: 257, names: ['Rangers'] },
   { id: 327, names: ['Bodo/Glimt', 'Bodo Glimt', 'FK Bodo/Glimt'] },
+  { id: 335, names: ['Sabah', 'Sabah Baku', 'Sabah FK'] },
   { id: 550, names: ['Shakhtar Donetsk', 'Shakhtar', 'FC Shakhtar Donetsk'] },
   { id: 551, names: ['Basel', 'FC Basel'] },
   { id: 553, names: ['Olympiacos'] },
   { id: 554, names: ['Anderlecht'] },
   { id: 556, names: ['Qarabag', 'Qarabağ'] },
   { id: 560, names: ['Slavia Prague', 'Slavia Praha', 'SK Slavia Praha'] },
+  { id: 565, names: ['Young Boys', 'BSC Young Boys'] },
   { id: 569, names: ['Club Brugge', 'Club Bruges'] },
   { id: 571, names: ['Red Bull Salzburg', 'Salzburg'] },
   { id: 572, names: ['Dynamo Kyiv', 'Dynamo Kiev'] },
+  { id: 575, names: ['AEK Athens'] },
+  { id: 601, names: ['Austria Wien', 'Austria Vienna', 'FK Austria Wien'] },
   { id: 608, names: ['Hajduk Split', 'Hajduk'] },
   { id: 611, names: ['Fenerbahce', 'Fenerbahçe'] },
   { id: 617, names: ['Panathinaikos'] },
   { id: 619, names: ['PAOK'] },
+  { id: 637, names: ['Sturm Graz', 'SK Sturm Graz'] },
   { id: 645, names: ['Galatasaray'] },
 ];
 
-export function footballTeamCrest(name: string): { id: number; logo: string } | null {
+/** Bundled symbols — no API-Sports id (placeholder or unverified CDN slot). */
+const LOCAL_TEAMS: { key: string; names: string[] }[] = [
+  { key: 'marseille', names: ['Marseille', 'Olympique Marseille', 'Olympique de Marseille'] },
+  { key: 'slovan', names: ['Slovan Bratislava', 'SK Slovan Bratislava', 'ŠK Slovan Bratislava'] },
+  { key: 'lask', names: ['LASK', 'LASK Linz'] },
+  { key: 'viking', names: ['Viking FK', 'Viking'] },
+];
+
+export function footballTeamCrest(name: string): { id: number | null; logo: string } | null {
   const n = name.trim();
   if (!n) return null;
-  let best: { id: number; score: number } | null = null;
+  let best: { id: number | null; logo: string; score: number } | null = null;
   for (const row of TEAMS) {
     for (const alias of row.names) {
       const score = teamMatchScore(n, alias);
       if (score <= 0) continue;
-      if (!best || score > best.score) best = { id: row.id, score };
+      if (!best || score > best.score) best = { id: row.id, logo: media(row.id), score };
+    }
+  }
+  for (const row of LOCAL_TEAMS) {
+    for (const alias of row.names) {
+      const score = teamMatchScore(n, alias);
+      if (score <= 0) continue;
+      if (!best || score > best.score) {
+        best = { id: null, logo: `${LOCAL_FOOTBALL_CREST_PREFIX}${row.key}`, score };
+      }
     }
   }
   if (!best) return null;
-  return { id: best.id, logo: media(best.id) };
+  return { id: best.id, logo: best.logo };
 }
 
 export function withFootballTeamCrest<T extends { id: number | null; name: string; logo: string }>(

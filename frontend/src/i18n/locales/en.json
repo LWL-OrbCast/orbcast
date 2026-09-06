@@ -807,7 +807,11 @@
       "ht": "HT",
       "ft": "FT",
       "minute": "{{n}}'",
-      "none": "No upcoming football match"
+      "none": "No upcoming football match",
+      "events": "Match events",
+      "eventsMore": "All events",
+      "eventsEmpty": "No events yet",
+      "eventsLoadError": "Couldn’t load events"
     },
     "ticket": {
       "back": "Markets",

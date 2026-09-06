@@ -1,6 +1,6 @@
 /**
- * Stadium chrome for football contests (EPL / La Liga / Serie A crests via
- * the server overlay; HIP-4 kickoff if the fixture is not in the board).
+ * Stadium chrome for football contests (EPL / La Liga / Serie A / UEFA club
+ * crests via the server overlay; HIP-4 kickoff if the fixture is not in the board).
  * Types only — no Expo `api` client, so Vite can import this file.
  */
 import { marketSpecFields, type ListedMarket } from './hip4';
@@ -78,6 +78,16 @@ const LEAGUE_MEDIA: Record<number, { id: number; name: string; logo: string }> =
     name: 'UEFA Champions League',
     logo: 'https://media.api-sports.io/football/leagues/2.png',
   },
+  3: {
+    id: 3,
+    name: 'UEFA Europa League',
+    logo: 'https://media.api-sports.io/football/leagues/3.png',
+  },
+  848: {
+    id: 848,
+    name: 'UEFA Europa Conference League',
+    logo: 'https://media.api-sports.io/football/leagues/848.png',
+  },
 };
 
 export function footballLeagueFromCompetition(competition: string): {
@@ -89,6 +99,8 @@ export function footballLeagueFromCompetition(competition: string): {
   if (/la\s*liga|laliga|spanish\s*primera/.test(s)) return LEAGUE_MEDIA[140];
   if (/serie\s*a|seria\s*a/.test(s)) return LEAGUE_MEDIA[135];
   if (/premier\s*league|\bepl\b|english\s*premier/.test(s)) return LEAGUE_MEDIA[39];
+  if (/conference\s*league|\buecl\b/.test(s)) return LEAGUE_MEDIA[848];
+  if (/europa\s*league|\buel\b/.test(s)) return LEAGUE_MEDIA[3];
   if (/champions\s*league|\bucl\b/.test(s)) return LEAGUE_MEDIA[2];
   const name = competition.trim();
   return { id: 0, name: name || 'Football', logo: '' };
@@ -141,6 +153,37 @@ export function syntheticFootballFixture(m: ListedMarket): FootballFixture | nul
     league: { ...league, round: '' },
     venue: '',
   };
+}
+
+/** Last N events on the stadium card. The popup can show the rest. */
+export const FOOTBALL_EVENT_PREVIEW = 2;
+
+export function previewFootballEvents<T>(events: readonly T[] | null | undefined): T[] {
+  if (!events?.length) return [];
+  return events.slice(-FOOTBALL_EVENT_PREVIEW);
+}
+
+/** Overlay fixture we can open a full timeline for (cached API-Sports call). */
+export function canOpenFootballEvents(fixture: {
+  fixtureId: number;
+  live?: boolean;
+  finished?: boolean;
+  events?: unknown[] | null;
+}): boolean {
+  if ((fixture.events?.length ?? 0) > 0) return true;
+  return fixture.fixtureId > 0 && Boolean(fixture.live || fixture.finished);
+}
+
+export function formatFootballEvent(ev: FootballEvent): string {
+  const minute =
+    ev.elapsed == null
+      ? ''
+      : ev.extra != null
+        ? `${ev.elapsed}+${ev.extra}'`
+        : `${ev.elapsed}'`;
+  const who = ev.player || ev.team;
+  const what = ev.type === 'Card' ? ev.detail || ev.type : ev.type;
+  return [minute, who, what].filter(Boolean).join(' · ');
 }
 
 /** API fixture when the board has this match; otherwise HIP-4 names + kickoff. */

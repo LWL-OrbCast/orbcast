@@ -20,7 +20,7 @@ This product is **HIP-4 only**. Do not add perps, HIP-3 books, banking, or an AI
    - **Native shell** — `frontend/app.json` (name, Android `com.orbcast.hip4sports`, iOS `com.example.hip4sports` until registered, scheme `hip4sports`). Put RPC / Privy / analytics in `.env`, not committed `extra`.
    - Logos live under `frontend/assets/images/` and `web/src/assets/`. This file does not swap those.
 7. Firebase: copy `*.example` → real plist/json (gitignored).
-8. Smoke test: [SETUP.md](./SETUP.md). Optional EPL banner: `API_SPORTS_KEY` on the backend only ([SPORTS.md](./SPORTS.md)).
+8. Smoke test: [SETUP.md](./SETUP.md). Optional football overlay: `API_SPORTS_KEY` on the backend only ([SPORTS.md](./SPORTS.md)).
 
 ---
 

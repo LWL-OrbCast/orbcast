@@ -35,14 +35,14 @@ If a copied file still imports perps or HIP-3, **delete or isolate** that path. 
 
 ## What this repo is (honest)
 
-Wallet / deposit / geo / builder / agent patterns are already here so they did not have to be rewritten from zero. This is **not** a finished sports product.
+Wallet / deposit / geo / builder / agent patterns are already here so they did not have to be rewritten from zero. Home / ticket / positions and football stadium chrome are **already shipped**. Overlay is EPL / La Liga / Serie A / UEFA club. HIP-4 has no `fixtureId` — join on `participantA`/`B` + `scheduledStart`.
 
 | Treat as product | Treat as leftover dump |
 |------------------|------------------------|
 | `frontend/src/lib/hip4.ts` | Leftover PnL/fills helpers still inside `hyperliquid.ts` (unused by the app) |
 | `frontend/src/lib/hlKernel.ts` (re-exports wallet/setup; registers Expo HIP-4 runtime) | Deleted: `_reference/hyperliquid.ts`, `hlMargin.ts` |
 | `frontend/src/lib/hlEnv.ts` | Deleted: `backend/hip3_dexes.py` (catalog routes gone from `server.py`) |
-| Sports stubs: `app/index.tsx`, `app/market/[id].tsx`, `app/portfolio.tsx` | `app/trade/**` — **must not exist**; do not recreate |
+| Sports UI: `app/index.tsx`, `app/market/[id].tsx`, `app/portfolio.tsx` | `app/trade/**` — **must not exist**; do not recreate |
 | Login / deposit / profile / geo / Privy / Bridge2 | (none — do not re-add catalog/news/Gemini routes) |
 
 **Success is not “make `hyperliquid.ts` work for sports.”** Success is: sports UI + `hip4.ts` signing, then **delete** leftover perp/HIP-3 code.
@@ -55,9 +55,9 @@ Wallet / deposit / geo / builder / agent patterns are already here so they did n
 frontend/
   app/
     _layout.tsx          # Privy, geo — no perps / asset screens
-    index.tsx            # Sports home STUB — wire to outcomeMeta
-    market/[id].tsx      # Ticket STUB
-    portfolio.tsx        # Positions STUB (Yes/No shares, not perp size)
+    index.tsx            # Sports home — live outcomeMeta + football stadium chrome
+    market/[id].tsx      # Ticket
+    portfolio.tsx        # Positions (Yes/No shares, not perp size)
     login.tsx, deposit.tsx, profile.tsx, rewards.tsx, legal screens
   src/lib/
     hip4.ts              # START HERE for markets
@@ -125,7 +125,7 @@ Facts to re-verify (were true as of 2026-08-29; **do not trust if docs moved**):
 
 - **Mainnet:** `deployers: [{ venue: "out", deployer: "0x0c46eb73fae2816f219fcf11f50d6d3c59b5819e", ... }]`. **19 outcomes, 1 question.** Every outcome `venue=out`.
 - Those markets today are mostly **recurring price binaries** (BTC/ETH/SOL/HYPE), plus price templates. Some underlyings look like `xyz:SP500` — that is an oracle input, **not** a reason to add HIP-3 trading UI.
-- **No sports rows on mainnet in that snapshot.** Filter when they appear. Do not fake a sports book from BTC dailies.
+- **No sports rows on mainnet in that 2026-08-29 snapshot.** Later probes have sports — list live `outcomeMeta`. Do not fake a sports book from BTC dailies.
 - **Testnet:** tens of venues (`out`, `game`, `omen`, …).
 - Outcome.xyz docs ([architecture](https://docs.outcome.xyz/outcome-architecture)) label HIP-4 metadata **Name/Full Name `OUT`**, deployer `0x423d7f725ae7056f03f7ef57f9d0303f91c62e06`. **That address did not match** the live mainnet `outcomeMeta` deployer. Always trust `outcomeMeta`.
 
@@ -174,12 +174,12 @@ Land a vertical slice: **list live outcomes → open a sports-shaped market scre
 - Implement `userOutcome` split / merge / mergeQuestion / negate.
 - **Do not** call `placeOrder` / `placeSpotOrder` in `hyperliquid.ts`.
 
-### 3. Sports home + ticket (replace stubs)
+### 3. Sports home + ticket (**shipped** — do not rebuild as stubs)
 
-- `app/index.tsx`: real list from `outcomeMeta` (sports filter). Empty/error/loading states.
+- `app/index.tsx`: live `outcomeMeta` list + featured slider / football chrome.
 - `app/market/[id].tsx`: sides, prices, size, submit via `hip4.ts`.
 - `app/portfolio.tsx`: outcome balances (spot-like), not perp positions.
-- Keep login/deposit working.
+- Keep login/deposit working. Extend; do not replace with empty stubs.
 
 ### 4. Extract kernel, then delete the dump
 
@@ -218,7 +218,7 @@ Minimum to run:
 
 - Frontend: `EXPO_PUBLIC_BACKEND_URL`, `EXPO_PUBLIC_PRIVY_APP_ID`, `EXPO_PUBLIC_PRIVY_CLIENT_ID`, `EXPO_PUBLIC_ARBITRUM_RPC_URL`, `EXPO_PUBLIC_HL_BUILDER_ADDRESS` (+ fee tenths).
 - Backend: `PRIVY_APP_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ARBITRUM_RPC_URL`, `BRIDGE2_RELAYER_PRIVATE_KEY`, matching `BUILDER_ADDRESS`.
-- Optional Home EPL chrome: backend `API_SPORTS_KEY` only (never Expo). [docs/SPORTS.md](./docs/SPORTS.md).
+- Optional football overlay (EPL / La Liga / Serie A / UEFA club): backend `API_SPORTS_KEY` only (never Expo). [docs/SPORTS.md](./docs/SPORTS.md).
 
 New product ⇒ **new Privy app**, **new EAS project**, **new bundle ids** (already placeholder in `app.json`).
 
@@ -236,5 +236,5 @@ New product ⇒ **new Privy app**, **new EAS project**, **new bundle ids** (alre
 
 1. Read `README.md`, `AGENTS.md`, `docs/HIP4.md`, `docs/SPORTS.md`, this file.
 2. Hyperliquid MCP: `outcomeMeta` + asset ids + `userOutcome` + outcome fees/builder.
-3. Propose a short plan (types in `hip4.ts` → order signing → replace `index.tsx`). Wait for the human if the sports **filter** is ambiguous.
+3. Propose a short plan against the **current** sports UI (do not rebuild home/ticket as stubs). Wait for the human if the sports **filter** is ambiguous.
 4. Then implement. Small diffs. English strings only.

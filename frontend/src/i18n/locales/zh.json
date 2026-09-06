@@ -807,7 +807,11 @@
         "ht": "半场",
         "ft": "全场",
         "minute": "{{n}}'",
-        "none": "暂无英超比赛"
+        "none": "暂无英超比赛",
+        "events": "比赛事件",
+        "eventsMore": "全部事件",
+        "eventsEmpty": "暂无事件",
+        "eventsLoadError": "无法加载事件"
       },
       "ticket": {
         "back": "市场",
@@ -836,6 +840,8 @@
         "sharesAt": " {{name}} 份 · ",
         "capHint": "卖出您持有的全部 {{held}} {{name}} {{value}}，不会买入 No。",
         "settled": "市场已结算",
+        "matchFinished": "比赛已结束",
+        "matchFinishedHint": "盘口仍开放，直至结算完成。",
         "closeAll": "平仓全部 {{name}}",
         "sellName": "卖出 {{name}}",
         "buyName": "买入 {{name}}",

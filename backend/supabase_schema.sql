@@ -312,7 +312,7 @@ CREATE TABLE IF NOT EXISTS news_cache (
     items JSONB NOT NULL DEFAULT '[]'::jsonb,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
--- Backend-only (EPL board key `sports:epl:board` + later feed keys).
+-- Backend-only (football board key `sports:football:board` + later feed keys).
 ALTER TABLE news_cache ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS forex_rates_cache (

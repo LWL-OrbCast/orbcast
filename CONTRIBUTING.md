@@ -4,7 +4,7 @@ Thanks for interest in this HIP-4 reference. It is a **mobile-first outcome-mark
 
 - [AGENTS.md](./AGENTS.md) — repo map for coding agents
 - [docs/HIP4.md](./docs/HIP4.md) — protocol + venue notes
-- [docs/SPORTS.md](./docs/SPORTS.md) — EPL chrome vs HIP-4 book
+- [docs/SPORTS.md](./docs/SPORTS.md) — football overlay vs HIP-4 book
 - [docs/SETUP.md](./docs/SETUP.md) — local run
 - [SECURITY.md](./SECURITY.md) — what never to commit
 

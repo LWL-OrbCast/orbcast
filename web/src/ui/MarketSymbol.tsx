@@ -32,6 +32,10 @@ import arsenal from '../../../frontend/assets/images/symbols/arsenal.webp';
 import madrid from '../../../frontend/assets/images/symbols/madrid.webp';
 import mancity from '../../../frontend/assets/images/symbols/mancity.webp';
 import manutd from '../../../frontend/assets/images/symbols/manutd.webp';
+import marseille from '../../../frontend/assets/images/symbols/marseille-icon.webp';
+import slovan from '../../../frontend/assets/images/symbols/slovan-logo.webp';
+import lask from '../../../frontend/assets/images/symbols/lask-icon.webp';
+import viking from '../../../frontend/assets/images/symbols/viking-icon.webp';
 
 const SYMBOL_SRC: Record<MarketSymbolKey, string> = {
   btc,
@@ -63,6 +67,10 @@ const SYMBOL_SRC: Record<MarketSymbolKey, string> = {
   madrid,
   mancity,
   manutd,
+  marseille,
+  slovan,
+  lask,
+  viking,
 };
 
 function MarkImg({

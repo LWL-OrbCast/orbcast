@@ -435,8 +435,19 @@ function HomeFeatured({
     const out: FeaturedSlide[] = [];
     const addedBooks: ListedMarket[] = [];
     const seenFixtureIds = new Set<number>();
+    const pinBookResolved =
+      pinBook ??
+      (pinFixture
+        ? markets.find((m) =>
+            marketMatchesFixture(m, pinFixture.home.name, pinFixture.away.name),
+          ) ?? null
+        : null);
     const alreadyShown = (m: ListedMarket, fx: EplFixture | null) => {
-      if (pinFixture && marketMatchesFixture(m, pinFixture.home.name, pinFixture.away.name)) {
+      if (
+        pinFixture &&
+        pinBookResolved &&
+        marketMatchesFixture(m, pinFixture.home.name, pinFixture.away.name)
+      ) {
         return true;
       }
       if (fx && fx.fixtureId > 0 && seenFixtureIds.has(fx.fixtureId)) return true;
@@ -444,14 +455,14 @@ function HomeFeatured({
     };
     if (pinFixture) {
       if (pinFixture.fixtureId > 0) seenFixtureIds.add(pinFixture.fixtureId);
-      if (pinBook) addedBooks.push(pinBook);
+      if (pinBookResolved) addedBooks.push(pinBookResolved);
       out.push({
         key: `fx-${pinFixture.fixtureId}`,
         kind: 'football',
         fixture: pinFixture,
-        book: pinBook,
-        href: pinBook
-          ? `/market/${questionTicketMarket(catalog, pinBook, heldOutcomeIds).id}`
+        book: pinBookResolved,
+        href: pinBookResolved
+          ? `/market/${questionTicketMarket(catalog, pinBookResolved, heldOutcomeIds).id}`
           : pinHref,
       });
     }
@@ -600,6 +611,8 @@ export function HomePage() {
   }, [all, eplBoardFixture, heldOutcomeIds]);
   const pinFixture = (() => {
     if (!eplBoardFixture || eplBoardFixture.finished) return null;
+    // Football chip: keep the overlay live/upcoming hero even when team
+    // names do not yet join a HIP-4 book. All still requires a book.
     return sport === 'football' || eplBook ? eplBoardFixture : null;
   })();
   const showFootballHero = sport === 'all' || sport === 'football';

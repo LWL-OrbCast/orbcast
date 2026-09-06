@@ -36,7 +36,11 @@ export type MarketSymbolKey =
   | 'arsenal'
   | 'madrid'
   | 'mancity'
-  | 'manutd';
+  | 'manutd'
+  | 'marseille'
+  | 'slovan'
+  | 'lask'
+  | 'viking';
 
 /** Photo-style marks that should fill the rounded box. Logos use contain. */
 const COVER_KEYS = new Set<MarketSymbolKey>(['lol', 'epl']);
@@ -80,6 +84,10 @@ const TEAM_RE: [RegExp, MarketSymbolKey][] = [
   [/\b(manchester united|man united|man utd|manutd)\b/i, 'manutd'],
   [/\b(manchester city|man city|mancity)\b/i, 'mancity'],
   [/\breal madrid\b/i, 'madrid'],
+  [/\b(?:olympique(?:\s+de)?\s+)?marseille\b/i, 'marseille'],
+  [/slovan\s+bratislava/i, 'slovan'],
+  [/\blask(?:\s+linz)?\b/i, 'lask'],
+  [/\bviking(?:\s+fk)?\b/i, 'viking'],
 ];
 
 /** Title-blob tickers. Do not scan `cl` here — it false-hits LCS / CLE. */

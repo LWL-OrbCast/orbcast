@@ -26,9 +26,9 @@ Create a **new** Supabase project. In the SQL editor, create the tables below (o
 | `deposit_notifications_log` | Dedup for deposit / trade-funded pushes |
 | `user_onboarding` | Identity stub (`user_id`, email, `created_at`, guide flags, `avatar_path`) |
 | `forex_rates_cache` | Display-currency rates (USD base, 24h) |
-| `news_cache` | Shared JSON blobs. Key `sports:epl:board` is the EPL overlay (multi-replica). Other keys reserved for a later sports feed. |
+| `news_cache` | Shared JSON blobs. Key `sports:football:board` is the football overlay (EPL / La Liga / Serie A / UEFA club, multi-replica). Other keys reserved for later sports feeds. |
 
-EPL featured chrome is that `news_cache` row plus a process-local TTL in `sports_football.py`. See [SPORTS.md](./SPORTS.md).
+Football overlay chrome is that `news_cache` row plus a process-local TTL in `sports_football.py`. See [SPORTS.md](./SPORTS.md).
 
 ### Optional ops
 

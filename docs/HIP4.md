@@ -17,7 +17,7 @@ HIP-4 deployers register a **venue** (2–4 lowercase letters). People may say �
 
 Probe (re-run yourself): `POST https://api.hyperliquid.xyz/info` body `{"type":"outcomeMeta"}`.
 
-**Mainnet snapshot 2026-08-29:** one deployer, venue `out`, address `0x0c46eb73fae2816f219fcf11f50d6d3c59b5819e`, 19 outcomes + 1 question. Markets were recurring crypto binaries / BTC buckets / price templates. **No sports listings in that snapshot.**
+**Mainnet snapshot 2026-08-29:** one deployer, venue `out`, address `0x0c46eb73fae2816f219fcf11f50d6d3c59b5819e`, 19 outcomes + 1 question. Markets were recurring crypto binaries / BTC buckets / price templates (no sports in *that* probe). **Re-probe** — sports rows exist later; this app lists them from live `outcomeMeta`.
 
 **Testnet:** many venues — permissionless `activateOutcomeDeployer` is in use.
 
@@ -29,4 +29,4 @@ Their published deployer `0x423d7f725ae7056f03f7ef57f9d0303f91c62e06` **did not 
 
 This app is a **trader** UI. Do not become a HIP-4 deployer unless asked.
 
-Home’s featured EPL card is **match chrome** (API-Sports via the backend). It is not a HIP-4 market and is not joined to `outcomeId` yet. See [SPORTS.md](./SPORTS.md).
+Home featured football slides are **HIP-4 contest books** with stadium chrome (API-Sports fixture when `participantA`/`B` + `scheduledStart` match the overlay board; otherwise HIP-4 names + static / bundled crests). `out` / `txyz` do not publish an API-Sports `fixtureId`. See [SPORTS.md](./SPORTS.md).

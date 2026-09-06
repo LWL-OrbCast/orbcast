@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -42,7 +42,8 @@ import {
   footballChromeFixture,
   type EplFixture,
 } from '../lib/api';
-import { useFeaturedAutoplay } from '@hip4/autoplay';
+import { useFeaturedAutoplay, useFeaturedOverlayHold } from '@hip4/autoplay';
+import { FeaturedCrossfade } from './FeaturedCrossfade';
 import { interpolate, useCopy } from '../lib/copy';
 import { useCatalogUi } from './catalogUi';
 import { EplFeatured } from './EplFeatured';
@@ -408,6 +409,12 @@ function slideLabel(slide: FeaturedSlide): string {
   return displayFeaturedHeading(slide.market);
 }
 
+function slideIdentity(slide: FeaturedSlide): string {
+  return slide.kind === 'football'
+    ? `fb:${slide.fixture.fixtureId || slide.book?.id || slide.key}`
+    : `g:${slide.market.id}`;
+}
+
 function HomeFeatured({
   title,
   seeAllHref,
@@ -495,6 +502,19 @@ function HomeFeatured({
   const { hip4 } = useCopy();
   const count = slides.length;
   const { index, go, pause, resume } = useFeaturedAutoplay(count);
+  const slidesRef = useRef(slides);
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  useLayoutEffect(() => {
+    const prevSlides = slidesRef.current;
+    slidesRef.current = slides;
+    const i = indexRef.current;
+    if (i === 0) return;
+    const was = prevSlides[i];
+    if (!was) return;
+    const nextIdx = slides.findIndex((s) => s.key === was.key);
+    if (nextIdx >= 0 && nextIdx !== i) go(nextIdx);
+  }, [slides, go]);
   const prev = count > 1 ? slides[(index - 1 + count) % count] : null;
   const next = count > 1 ? slides[(index + 1) % count] : null;
   const slide = slides[Math.min(index, Math.max(0, count - 1))] ?? null;
@@ -521,46 +541,43 @@ function HomeFeatured({
     </div>
   );
 
-  if (loading && !slides.length) {
-    return (
-      <>
-        {header}
-        <FeaturedEventSkeleton />
-      </>
-    );
-  }
-  if (!slide) {
-    return (
-      <>
-        {header}
-        <FeaturedEvent
-          markets={[]}
-          catalog={catalog}
-          heldOutcomeIds={heldOutcomeIds}
-          loading={loading}
-        />
-      </>
-    );
-  }
+  const stageId = slide
+    ? slideIdentity(slide)
+    : loading
+      ? 'skel'
+      : 'empty';
+  const stage = slide ? (
+    slide.kind === 'football' ? (
+      <EplFeatured
+        fixture={slide.fixture}
+        href={slide.href}
+        catalog={catalog}
+        book={slide.book}
+      />
+    ) : (
+      <FeaturedEvent
+        markets={[slide.market]}
+        catalog={catalog}
+        heldOutcomeIds={heldOutcomeIds}
+        loading={false}
+      />
+    )
+  ) : loading ? (
+    <FeaturedEventSkeleton />
+  ) : (
+    <FeaturedEvent
+      markets={[]}
+      catalog={catalog}
+      heldOutcomeIds={heldOutcomeIds}
+      loading={false}
+    />
+  );
+
   return (
     <>
       {header}
       <div onPointerEnter={pause} onPointerLeave={resume}>
-        {slide.kind === 'football' ? (
-          <EplFeatured
-            fixture={slide.fixture}
-            href={slide.href}
-            catalog={catalog}
-            book={slide.book}
-          />
-        ) : (
-          <FeaturedEvent
-            markets={[slide.market]}
-            catalog={catalog}
-            heldOutcomeIds={heldOutcomeIds}
-            loading={false}
-          />
-        )}
+        <FeaturedCrossfade id={stageId}>{stage}</FeaturedCrossfade>
       </div>
     </>
   );
@@ -582,6 +599,12 @@ export function HomePage() {
     retry: 1,
   });
   const catalogLoading = q.isLoading && !q.data;
+  const showFootballHero = sport === 'all' || sport === 'football';
+  const overlayHold = useFeaturedOverlayHold(
+    showFootballHero,
+    eplQ.isFetched || !!eplQ.data,
+  );
+  const heroLoading = catalogLoading || overlayHold;
   const fixtures = useMemo(() => catalogFootballFixtures(eplQ.data), [eplQ.data]);
   const featured = useMemo(
     () =>
@@ -615,7 +638,6 @@ export function HomePage() {
     // names do not yet join a HIP-4 book. All still requires a book.
     return sport === 'football' || eplBook ? eplBoardFixture : null;
   })();
-  const showFootballHero = sport === 'all' || sport === 'football';
   const sliderMarkets = featured;
   const heroKey = showFootballHero ? `fb-${sport}` : sport;
   const eplHref = (() => {
@@ -653,14 +675,14 @@ export function HomePage() {
               seeAllHref={
                 sport === 'all' ? '/markets?view=open' : `/markets?view=open&sport=${sport}`
               }
-              pinFixture={showFootballHero ? pinFixture : null}
+              pinFixture={heroLoading || !showFootballHero ? null : pinFixture}
               pinHref={eplHref}
-              pinBook={showFootballHero ? eplBook : null}
-              markets={sliderMarkets}
-              fixtures={showFootballHero ? fixtures : null}
+              pinBook={heroLoading || !showFootballHero ? null : eplBook}
+              markets={heroLoading ? [] : sliderMarkets}
+              fixtures={heroLoading || !showFootballHero ? null : fixtures}
               catalog={all}
               heldOutcomeIds={heldOutcomeIds}
-              loading={catalogLoading}
+              loading={heroLoading}
             />
           </div>
         </div>

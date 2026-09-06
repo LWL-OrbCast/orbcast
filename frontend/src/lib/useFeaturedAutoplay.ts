@@ -1,6 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const FEATURED_SLIDE_MS = 6500;
+export const FEATURED_CROSSFADE_MS = 400;
+
+/** Wait for the football overlay so the hero is not a placeholder that snaps to live. */
+export function useFeaturedOverlayHold(needed: boolean, ready: boolean, maxMs = 1200) {
+  const [held, setHeld] = useState(() => needed && !ready);
+  useEffect(() => {
+    if (!needed || ready) {
+      setHeld(false);
+      return;
+    }
+    setHeld(true);
+    const t = setTimeout(() => setHeld(false), maxMs);
+    return () => clearTimeout(t);
+  }, [needed, ready, maxMs]);
+  return held;
+}
 
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || !window.matchMedia) return false;

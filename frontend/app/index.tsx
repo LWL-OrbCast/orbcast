@@ -37,6 +37,7 @@ import { HomeHeader } from '../src/components/sports/HomeHeader';
 import { SportCategoryRow, type SportChipId } from '../src/components/sports/SportCategoryRow';
 import { FeaturedEventSlider } from '../src/components/sports/FeaturedEventSlider';
 import { FeaturedMatchCard } from '../src/components/sports/FeaturedMatchCard';
+import { useFeaturedOverlayHold } from '../src/lib/useFeaturedAutoplay';
 import { HomeHighlightCards } from '../src/components/sports/HomeHighlightCards';
 import { PredictionRow } from '../src/components/sports/PredictionRow';
 import { useAppStore } from '../src/store/appStore';
@@ -81,6 +82,10 @@ export default function HomeScreen() {
     retry: 1,
   });
   const fixtures = useMemo(() => catalogFootballFixtures(eplQuery.data), [eplQuery.data]);
+  const overlayHold = useFeaturedOverlayHold(
+    chip === 'all' || chip === 'football',
+    eplQuery.isFetched || !!eplQuery.data,
+  );
   const trending = useMemo(
     () => trendingCatalogMarkets(all, chip, 3, heldOutcomeIds, fixtures),
     [all, chip, heldOutcomeIds, fixtures],
@@ -152,11 +157,12 @@ export default function HomeScreen() {
           <Text style={styles.seeAll}>{t('hip4.home.seeAll')}</Text>
         </TouchableOpacity>
       </View>
-      {featured.length ? (
+      {overlayHold || featured.length ? (
         <FeaturedEventSlider
-          markets={featured}
+          markets={overlayHold ? [] : featured}
           catalog={all}
           fixtures={fixtures}
+          loading={overlayHold}
           onPressQuestion={(m) =>
             pushRouteOnce(router, `/market/${questionTicketMarket(all, m, heldOutcomeIds).id}`)
           }

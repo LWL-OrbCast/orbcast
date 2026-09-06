@@ -121,6 +121,35 @@ a { color: inherit; text-decoration: none; }
   animation: page-enter 180ms ease-out;
 }
 
+@keyframes featured-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes featured-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.featured-stage {
+  position: relative;
+  overflow: hidden;
+}
+.featured-stage-in {
+  animation: featured-fade-in 400ms ease;
+}
+.featured-stage-out {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  animation: featured-fade-out 400ms ease forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .featured-stage-in,
+  .featured-stage-out {
+    animation: none;
+  }
+}
+
 @keyframes funds-chevron-sweep {
   0%, 100% { opacity: 0.28; }
   18% { opacity: 1; }

@@ -20,7 +20,9 @@ import {
   fetchAllMids,
   overlayListedMids,
   netPnlUsd,
+  isPlaceholderOutcomeTitle,
   outcomeIdsNeedingSettledLabels,
+  resolveOutcomeTitle,
   outcomeRealizedPnlFromFills,
   outcomeSpotCoin,
   outcomeVolumeFromFills,
@@ -199,11 +201,22 @@ export function PositionsPage() {
   const fills = fillsQ.data ?? [];
   const needLabels = useMemo(
     () =>
-      outcomeIdsNeedingSettledLabels(fills, markets, [
-        ...spot.balances.map((b) => String(b.coin ?? b.token ?? '')),
-        ...(cancelledQ.data ?? []).map((o) => outcomeSpotCoin(o.outcomeId, o.side)),
-      ]),
-    [fills, markets, spot.balances, cancelledQ.data],
+      outcomeIdsNeedingSettledLabels(
+        fills,
+        markets,
+        [
+          ...spot.balances.map((b) => String(b.coin ?? b.token ?? '')),
+          ...(cancelledQ.data ?? []).map((o) => outcomeSpotCoin(o.outcomeId, o.side)),
+          ...(ordersQ.data ?? []).map((o) => outcomeSpotCoin(o.outcomeId, o.side)),
+        ],
+        [
+          ...(cancelledQ.data ?? [])
+            .filter((o) => isPlaceholderOutcomeTitle(o.title))
+            .map((o) => o.outcomeId),
+          ...(ordersQ.data ?? []).map((o) => o.outcomeId),
+        ],
+      ),
+    [fills, markets, spot.balances, cancelledQ.data, ordersQ.data],
   );
   const labelsQ = useQuery({
     queryKey: ['hip4', 'settled-labels', address, needLabels.join(',')],
@@ -494,6 +507,7 @@ export function PositionsPage() {
                     key={o.oid}
                     item={o}
                     markets={markets}
+                    labels={labelsQ.data}
                     onCancel={() => cancelMut.mutate(o)}
                     pending={cancelMut.isPending && cancelMut.variables?.oid === o.oid}
                   />
@@ -615,21 +629,24 @@ function OpenRow({
 function OrderRow({
   item,
   markets,
+  labels,
   onCancel,
   pending,
 }: {
   item: OutcomeOpenOrder;
   markets: ListedMarket[];
+  labels?: Record<string, { title: string; sideNames: Record<0 | 1, string> }>;
   onCancel: () => void;
   pending: boolean;
 }) {
   const { hip4 } = useCopy();
   const buy = item.tradeSide === 'buy';
   const market = markets.find((m) => m.outcomeId === item.outcomeId);
+  const title = resolveOutcomeTitle(item.outcomeId, markets, labels);
   const sideName =
+    labels?.[String(item.outcomeId)]?.sideNames[item.side] ??
     market?.sides.find((s) => s.side === item.side)?.name ??
     (item.side === 0 ? hip4.yes : hip4.no);
-  const title = market ? displayListedTitle(market) : `Prediction #${item.outcomeId}`;
   const ntl = item.sz * item.limitPx;
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-white p-4">
@@ -702,7 +719,8 @@ function HistoryList({
                   : row.fullyClosed
                     ? hip4.positions.closed
                     : hip4.positions.sold}{' '}
-                {row.shares.toFixed(0)} · {Math.round(row.exitPx * 100)}¢
+                {interpolate(hip4.ticket.sharesLine, { shares: row.shares.toFixed(0) })} ·{' '}
+                {Math.round(row.exitPx * 100)}¢
                 {row.closedAt ? ` · ${formatWhen(row.closedAt)}` : ''}
               </div>
             </div>

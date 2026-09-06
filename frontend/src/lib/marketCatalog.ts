@@ -379,13 +379,15 @@ type CatalogFixture = {
   home: { name: string };
   away: { name: string };
   finished?: boolean;
+  live?: boolean;
   kickoffAt?: number | null;
   league?: { name?: string };
 };
 
 /**
  * API-Sports FT / AET / PEN (etc.) — not HIP-4 `settled`.
- * The venue may still leave the book clickable until validators settle.
+ * Discovery (All / Football / search / featured) drops the contest. Positions
+ * and a direct `/market/:id` stay; a held order does not keep it in the catalog.
  *
  * `fixtures == null` means the overlay has not loaded (or is off). An empty
  * array means the board loaded and this contest is not live/upcoming.
@@ -397,25 +399,22 @@ export function isFinishedFootballContest(
   if (!isFootballContestMarket(m)) return false;
   const openRows = (fixtures ?? []).filter((f) => !f.finished);
   const doneRows = (fixtures ?? []).filter((f) => f.finished);
-  // In-play / upcoming on the board — name pair is enough. Kickoff scoring
-  // is only a tie-break; do not drop a live book because clocks disagree.
-  if (
-    fixtures &&
-    openRows.some((f) => marketMatchesFixture(m, f.home.name, f.away.name))
-  ) {
-    return false;
-  }
+  const kick = bookKickoffMs(m);
+
   if (fixtures) {
+    // Still on the live board — keep even if HIP-4 clocks disagree.
+    if (openRows.some((f) => f.live && marketMatchesFixture(m, f.home.name, f.away.name))) {
+      return false;
+    }
     const openHit = fixtureForMarket(openRows, m);
-    if (openHit) return false;
-    const doneHit = fixtureForMarket(doneRows, m);
-    if (doneHit) {
-      const kick = bookKickoffMs(m);
-      const fx = doneHit.kickoffAt ?? null;
+    if (openHit) {
+      const fx = openHit.kickoffAt ?? null;
       if (kick == null || fx == null || Math.abs(kick - fx) <= KICKOFF_ALIGN_MS) {
-        return true;
+        return false;
       }
     }
+    const doneHit = fixtureForMarket(doneRows, m);
+    if (doneHit) return true;
   }
 
   const finished = doneRows.map((f) => ({ home: f.home.name, away: f.away.name }));
@@ -426,16 +425,12 @@ export function isFinishedFootballContest(
     seen.add(k);
     finished.push(f);
   }
-  const kickoffPast = m.startsAt != null && m.startsAt <= Date.now();
-  const namedFt = finished.some((f) => marketMatchesFixture(m, f.home, f.away));
-  // Name-only FT memory must not hide an in-play book (same clubs rematch, or
-  // leftover FT names while the overlay missed the live row).
-  if (namedFt && m.status !== 'live' && (fixtures == null || kickoffPast)) {
+  const kickoffPast = kick != null && kick <= Date.now();
+  if (finished.some((f) => marketMatchesFixture(m, f.home, f.away)) && (fixtures == null || kickoffPast)) {
     return true;
   }
 
   if (fixtures == null) return false;
-  if (m.status === 'live') return false;
   return kickoffPast;
 }
 

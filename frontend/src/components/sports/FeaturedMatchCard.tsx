@@ -31,6 +31,7 @@ import { fixtureForMarket } from '../../lib/marketCatalog';
 import { questionSiblings, type ListedMarket } from '../../lib/hip4';
 import { LEG_PALETTE, OddsPill } from './OddsPill';
 import { TeamCrest } from './TeamCrest';
+import { FeaturedHeroFade } from './FeaturedHeroFade';
 
 const BANNER_STUB = require('../../../assets/images/symbols/featured-city-madrid.webp');
 const BANNER_STADIUM = require('../../../assets/images/symbols/featured-banner.webp');
@@ -153,7 +154,7 @@ function CardChrome({
   );
 }
 
-function FeaturedSkeleton() {
+export function FeaturedCardSkeleton() {
   const shimmerX = useShimmerX([-200, 200]);
   return (
     <View style={styles.wrap} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -505,7 +506,7 @@ export function FeaturedMatchCard({ onPress, catalog = [], book = null, onPressL
   });
 
   if (query.isPending && !query.data) {
-    return <FeaturedSkeleton />;
+    return <FeaturedCardSkeleton />;
   }
 
   const board = query.data;
@@ -518,13 +519,15 @@ export function FeaturedMatchCard({ onPress, catalog = [], book = null, onPressL
     null;
   if (board?.configured && fixture) {
     return (
-      <FootballFeaturedCard
-        fixture={fixture}
-        onPress={onPress}
-        book={book}
-        catalog={catalog}
-        onPressLeg={onPressLeg}
-      />
+      <FeaturedHeroFade id={`fb:${fixture.fixtureId}`}>
+        <FootballFeaturedCard
+          fixture={fixture}
+          onPress={onPress}
+          book={book}
+          catalog={catalog}
+          onPressLeg={onPressLeg}
+        />
+      </FeaturedHeroFade>
     );
   }
   if (board?.configured) {

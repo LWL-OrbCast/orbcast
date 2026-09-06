@@ -502,6 +502,22 @@ export function displayListedTitle(market: ListedMarket): string {
   return stripHip3DexPrefixForDisplay(title);
 }
 
+/** Live catalog title, else `settledOutcome` label, else `Prediction #id`. */
+export function resolveOutcomeTitle(
+  outcomeId: number,
+  markets: ListedMarket[],
+  labels?: Record<string, SettledOutcomeLabel> | Map<number, SettledOutcomeLabel>,
+): string {
+  const market = markets.find((m) => m.outcomeId === outcomeId);
+  const live = market ? displayListedTitle(market) : '';
+  if (live && !isPlaceholderOutcomeTitle(live)) return live;
+  if (labels) {
+    const hit = labels instanceof Map ? labels.get(outcomeId) : labels[String(outcomeId)];
+    if (hit?.title && !isPlaceholderOutcomeTitle(hit.title)) return hit.title;
+  }
+  return live || `Prediction #${outcomeId}`;
+}
+
 /** Featured banner: `Everton vs Manchester United`, not the long league+matchday line. */
 export function displayFeaturedHeading(market: ListedMarket): string {
   const fields = marketSpecFields(market);
@@ -536,14 +552,14 @@ function specToMetaRow(spec: Record<string, unknown>, fallbackId: number): Outco
 /** Recurring books leave `outcomeMeta` after settle. `settledOutcome` still has the spec. */
 export async function fetchSettledOutcomeLabels(
   outcomeIds: number[],
-): Promise<Map<number, SettledOutcomeLabel>> {
-  const out = new Map<number, SettledOutcomeLabel>();
+): Promise<Record<string, SettledOutcomeLabel>> {
+  const out: Record<string, SettledOutcomeLabel> = {};
   const now = Date.now();
   const need: number[] = [];
   for (const id of [...new Set(outcomeIds)].filter((n) => n > 0)) {
     const hit = settledLabelCache.get(id);
     if (hit && now - hit.at < SETTLED_LABEL_TTL_MS) {
-      out.set(id, hit.label);
+      out[String(id)] = hit.label;
     } else {
       need.push(id);
     }
@@ -571,7 +587,7 @@ export async function fetchSettledOutcomeLabels(
           };
           const label = { title, sideNames };
           settledLabelCache.set(id, { at: Date.now(), label });
-          out.set(id, label);
+          out[String(id)] = label;
         } catch {
           /* keep placeholder */
         }
@@ -585,27 +601,41 @@ export function outcomeIdsNeedingSettledLabels(
   fills: Array<Record<string, unknown>>,
   markets: ListedMarket[],
   extraCoins: string[] = [],
+  extraOutcomeIds: number[] = [],
 ): number[] {
   const byId = new Map(markets.map((m) => [m.outcomeId, m]));
   const ids = new Set<number>();
+  const considerId = (outcomeId: number) => {
+    if (!(outcomeId > 0)) return;
+    const market = byId.get(outcomeId);
+    if (!market || !market.title.trim() || isPlaceholderOutcomeTitle(market.title)) {
+      ids.add(outcomeId);
+    }
+  };
   const consider = (coin: string) => {
     const parsed = parseSideCoin(coin);
-    if (!parsed) return;
-    const market = byId.get(parsed.outcomeId);
-    if (!market || isPlaceholderOutcomeTitle(market.title)) ids.add(parsed.outcomeId);
+    if (parsed) considerId(parsed.outcomeId);
   };
   for (const f of fills) consider(String(f.coin ?? f.token ?? ''));
   for (const coin of extraCoins) consider(coin);
+  for (const id of extraOutcomeIds) considerId(id);
   return [...ids].sort((a, b) => a - b);
 }
 
 export function applySettledOutcomeLabels<
   T extends { outcomeId: number; side: OutcomeSide; title: string; sideName: string },
->(rows: T[], labels: Map<number, SettledOutcomeLabel> | undefined): T[] {
-  if (!labels?.size) return rows;
+>(
+  rows: T[],
+  labels: Record<string, SettledOutcomeLabel> | Map<number, SettledOutcomeLabel> | undefined,
+): T[] {
+  if (!labels) return rows;
+  const get = (id: number): SettledOutcomeLabel | undefined =>
+    labels instanceof Map ? labels.get(id) : labels[String(id)];
+  const empty = labels instanceof Map ? labels.size === 0 : Object.keys(labels).length === 0;
+  if (empty) return rows;
   return rows.map((row) => {
     if (row.title && !isPlaceholderOutcomeTitle(row.title)) return row;
-    const hit = labels.get(row.outcomeId);
+    const hit = get(row.outcomeId);
     if (!hit?.title || isPlaceholderOutcomeTitle(hit.title)) return row;
     return {
       ...row,
@@ -1553,6 +1583,12 @@ function displayFieldMap(fields: Record<string, string>): Record<string, string>
   if (underlying) out.underlying = underlying;
   out.threshold = out.threshold || out.targetPrice || out.target || '';
   out.target = out.target || out.targetPrice || out.threshold || '';
+  for (const key of ['threshold', 'targetPrice', 'target'] as const) {
+    const raw = out[key];
+    if (!raw || /[$,]/.test(raw)) continue;
+    const n = Number(raw);
+    if (Number.isFinite(n)) out[key] = formatUsdCompact(n);
+  }
   return out;
 }
 
@@ -1615,11 +1651,21 @@ export function titleFromOutcome(
     return displayTitlePair(outcomeTitle.replace(/\s+\?/g, '?'), subtitle);
   }
 
-  if (fields.class === 'priceBinary' && fields.underlying && (fields.targetPrice || fields.threshold)) {
-    const px = Number(fields.targetPrice ?? fields.threshold);
+  const underlying = fields.underlying || fields.perp || fields.hlPerp;
+  const thresholdRaw = rawFields.threshold || rawFields.targetPrice || rawFields.target;
+  const threshold = fields.threshold || fields.targetPrice || fields.target;
+  if (
+    (fields.class === 'priceBinary' ||
+      templateIdFromName(row.name) === 'binaryPrice' ||
+      (!question && Boolean(underlying && thresholdRaw))) &&
+    underlying &&
+    thresholdRaw
+  ) {
+    const px = Number(thresholdRaw);
     const when = expiry ? ` by ${formatWhen(expiry)}` : '';
+    const subject = fields.priceDescription?.trim() || displayOracleSymbol(underlying);
     return displayTitlePair(
-      `Will ${displayOracleSymbol(fields.underlying)} be above $${formatUsdCompact(px)}${when}?`,
+      `Will ${subject} be above $${Number.isFinite(px) ? formatUsdCompact(px) : threshold}${when}?`,
       fields.period ? `Recurring · ${fields.period}` : 'Price binary',
     );
   }
@@ -1656,10 +1702,10 @@ export function titleFromOutcome(
     );
   }
 
-  if (fields.underlying && (fields.targetPrice || fields.threshold || fields.target)) {
-    const px = Number(fields.targetPrice ?? fields.threshold ?? fields.target);
+  if (fields.underlying && (rawFields.targetPrice || rawFields.threshold || rawFields.target)) {
+    const px = Number(rawFields.targetPrice ?? rawFields.threshold ?? rawFields.target);
     return displayTitlePair(
-      `${displayOracleSymbol(fields.underlying)} above $${formatUsdCompact(px)}?`,
+      `${displayOracleSymbol(fields.underlying)} above $${Number.isFinite(px) ? formatUsdCompact(px) : threshold}?`,
       expiry ? formatWhen(expiry) : '',
     );
   }

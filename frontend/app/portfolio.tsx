@@ -38,6 +38,8 @@ import {
   fetchOutcomeCancelledOrders,
   cancelOutcomeOrder,
   displayListedTitle,
+  isPlaceholderOutcomeTitle,
+  resolveOutcomeTitle,
   outcomeSpotCoin,
   Hip4Error,
   placeOutcomeOrder,
@@ -211,7 +213,8 @@ function renderClosed(item: OutcomeClosedLot, t: TFunction, money: MoneyFmt) {
             : item.fullyClosed
               ? t('hip4.positions.closed')
               : t('hip4.positions.sold')}{' '}
-          {item.shares.toFixed(0)} · {Math.round(item.exitPx * 100)}¢
+          {t('hip4.ticket.sharesLine', { shares: item.shares.toFixed(0) })} ·{' '}
+          {Math.round(item.exitPx * 100)}¢
           {item.closedAt ? ` · ${formatClosedAt(item.closedAt)}` : ''}
         </Text>
       </View>
@@ -261,6 +264,7 @@ function renderCancelled(item: OutcomeCancelledOrder, t: TFunction) {
 function renderOrder(
   item: OutcomeOpenOrder,
   markets: ListedMarket[],
+  labels: Record<string, { title: string; sideNames: Record<0 | 1, string> }> | undefined,
   router: { push: (href: Href) => void },
   t: TFunction,
   cancelling: boolean,
@@ -269,10 +273,11 @@ function renderOrder(
 ) {
   const tone = item.tradeSide === 'sell' ? colors.status.error : YES_COLOR;
   const market = markets.find((m) => m.outcomeId === item.outcomeId);
+  const title = resolveOutcomeTitle(item.outcomeId, markets, labels);
   const sideName =
+    labels?.[String(item.outcomeId)]?.sideNames[item.side] ??
     market?.sides.find((s) => s.side === item.side)?.name ??
     (item.side === 0 ? t('hip4.yes') : t('hip4.no'));
-  const title = market ? displayListedTitle(market) : `Prediction #${item.outcomeId}`;
   const ntl = item.sz * item.limitPx;
   return (
     <View style={styles.row}>
@@ -446,9 +451,16 @@ export default function PositionsScreen() {
         [
           ...balances.map((b) => String(b.coin ?? b.token ?? '')),
           ...(cancelledQuery.data ?? []).map((o) => outcomeSpotCoin(o.outcomeId, o.side)),
+          ...(ordersQuery.data ?? []).map((o) => outcomeSpotCoin(o.outcomeId, o.side)),
+        ],
+        [
+          ...(cancelledQuery.data ?? [])
+            .filter((o) => isPlaceholderOutcomeTitle(o.title))
+            .map((o) => o.outcomeId),
+          ...(ordersQuery.data ?? []).map((o) => o.outcomeId),
         ],
       ),
-    [fillsQuery.data, marketsQuery.data, balances, cancelledQuery.data],
+    [fillsQuery.data, marketsQuery.data, balances, cancelledQuery.data, ordersQuery.data],
   );
 
   const settledTitlesQuery = useQuery({
@@ -641,8 +653,15 @@ export default function PositionsScreen() {
           tradeSide: order.tradeSide,
           limitPx: order.limitPx,
           sz: order.sz,
-          title: `Prediction #${order.outcomeId}`,
-          sideName: order.side === 0 ? 'Yes' : 'No',
+          title: resolveOutcomeTitle(order.outcomeId, catalogMarkets, settledTitlesQuery.data),
+          sideName: (() => {
+            const market = catalogMarkets.find((m) => m.outcomeId === order.outcomeId);
+            return (
+              settledTitlesQuery.data?.[String(order.outcomeId)]?.sideNames[order.side] ??
+              market?.sides.find((s) => s.side === order.side)?.name ??
+              (order.side === 0 ? 'Yes' : 'No')
+            );
+          })(),
           reason: 'canceled',
           cancelledAt: Date.now(),
         };
@@ -862,9 +881,18 @@ export default function PositionsScreen() {
           isCancelledRow(item)
             ? renderCancelled(item, t)
             : isOpenOrderRow(item)
-              ? renderOrder(item, marketsQuery.data ?? [], router, t, cancellingOid === item.oid, () => {
-                  void cancelOpen(item);
-                }, money)
+              ? renderOrder(
+                  item,
+                  catalogMarkets,
+                  settledTitlesQuery.data,
+                  router,
+                  t,
+                  cancellingOid === item.oid,
+                  () => {
+                    void cancelOpen(item);
+                  },
+                  money,
+                )
               : 'fullyClosed' in item
                 ? renderClosed(item, t, money)
                 : renderOpen(

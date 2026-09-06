@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { FeaturedHeroFade } from './FeaturedHeroFade';
 import {
   displayFeaturedHeading,
   formatHighlightVolume,
@@ -8,7 +9,7 @@ import {
 } from '../../lib/hip4';
 import { footballChromeFixture, type FootballFixture } from '../../lib/sportsFootball';
 import { isFinishedFootballContest, isFootballContestMarket } from '../../lib/marketCatalog';
-import { FootballFeaturedCard } from './FeaturedMatchCard';
+import { FeaturedCardSkeleton, FootballFeaturedCard } from './FeaturedMatchCard';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/fonts';
 import { MarketSymbol } from './MarketSymbol';
@@ -21,6 +22,7 @@ type Props = {
   fixtures?: FootballFixture[] | null;
   onPressQuestion: (market: ListedMarket) => void;
   onPressLeg: (market: ListedMarket) => void;
+  loading?: boolean;
 };
 
 export function FeaturedEventSlider({
@@ -29,30 +31,42 @@ export function FeaturedEventSlider({
   fixtures = null,
   onPressQuestion,
   onPressLeg,
+  loading = false,
 }: Props) {
   const market = markets.find((m) => !isFinishedFootballContest(m, fixtures)) ?? null;
-  if (!market) return null;
+  if (!market && !loading) return null;
 
-  const football = footballChromeFixture(fixtures ?? [], market);
-  if (isFootballContestMarket(market) && football && !football.finished) {
-    return (
-      <FootballFeaturedCard
-        fixture={football}
-        book={market}
-        catalog={catalog}
-        onPress={() => onPressQuestion(market)}
-        onPressLeg={onPressLeg}
-      />
-    );
-  }
+  const football = market ? footballChromeFixture(fixtures ?? [], market) : null;
+  const stadium = Boolean(
+    market && isFootballContestMarket(market) && football && !football.finished,
+  );
+  const identity = !market
+    ? 'skel'
+    : stadium
+      ? `fb:${football?.fixtureId || market.id}`
+      : `g:${market.id}`;
 
   return (
-    <GenericFeaturedCard
-      market={market}
-      catalog={catalog}
-      onPressQuestion={onPressQuestion}
-      onPressLeg={onPressLeg}
-    />
+    <FeaturedHeroFade id={identity}>
+      {!market ? (
+        <FeaturedCardSkeleton />
+      ) : stadium && football ? (
+        <FootballFeaturedCard
+          fixture={football}
+          book={market}
+          catalog={catalog}
+          onPress={() => onPressQuestion(market)}
+          onPressLeg={onPressLeg}
+        />
+      ) : (
+        <GenericFeaturedCard
+          market={market}
+          catalog={catalog}
+          onPressQuestion={onPressQuestion}
+          onPressLeg={onPressLeg}
+        />
+      )}
+    </FeaturedHeroFade>
   );
 }
 

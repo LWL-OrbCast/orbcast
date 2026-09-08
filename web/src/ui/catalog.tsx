@@ -22,6 +22,7 @@ import {
   catalogListRows,
   featuredCatalogMarkets,
   hip4ContestForTeams,
+  pickFeaturedFootballFixture,
   isFinishedFootballContest,
   isFootballContestMarket,
   marketMatchesFixture,
@@ -622,7 +623,10 @@ export function HomePage() {
     [all, sport, heldOutcomeIds, fixtures],
   );
   const eplBoardFixture =
-    eplQ.data?.configured && eplQ.data.featured ? eplQ.data.featured : null;
+    pickFeaturedFootballFixture(fixtures, all, heldOutcomeIds) ??
+    (eplQ.data?.configured && eplQ.data.featured && !eplQ.data.featured.finished
+      ? eplQ.data.featured
+      : null);
   const eplBook = useMemo(() => {
     if (!eplBoardFixture) return null;
     return hip4ContestForTeams(

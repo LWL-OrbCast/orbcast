@@ -192,7 +192,7 @@ function teamKeys(name: string): string[] {
     keys.add('atleticomadrid');
     keys.add('atleticodemadrid');
   }
-  if (s === 'inter' || s === 'intermilan' || s === 'internazionale') {
+  if (s === 'inter' || s === 'intermilan' || /^internazionale/.test(s)) {
     keys.add('inter');
     keys.add('intermilan');
     keys.add('internazionale');
@@ -402,7 +402,7 @@ export function isFinishedFootballContest(
   const kick = bookKickoffMs(m);
 
   if (fixtures) {
-    // Still on the live board — keep even if HIP-4 clocks disagree.
+    // Still on the live / upcoming board — keep even if HIP-4 clocks disagree.
     if (openRows.some((f) => f.live && marketMatchesFixture(m, f.home.name, f.away.name))) {
       return false;
     }
@@ -414,7 +414,13 @@ export function isFinishedFootballContest(
       }
     }
     const doneHit = fixtureForMarket(doneRows, m);
-    if (doneHit) return true;
+    if (doneHit) {
+      const fx = doneHit.kickoffAt ?? null;
+      // Same clubs in last=10 from another round must not hide today's book.
+      if (kick == null || fx == null || Math.abs(kick - fx) <= KICKOFF_ALIGN_MS) {
+        return true;
+      }
+    }
   }
 
   const finished = doneRows.map((f) => ({ home: f.home.name, away: f.away.name }));
@@ -426,12 +432,13 @@ export function isFinishedFootballContest(
     finished.push(f);
   }
   const kickoffPast = kick != null && kick <= Date.now();
-  if (finished.some((f) => marketMatchesFixture(m, f.home, f.away)) && (fixtures == null || kickoffPast)) {
+  if (finished.some((f) => marketMatchesFixture(m, f.home, f.away)) && kickoffPast) {
     return true;
   }
 
-  if (fixtures == null) return false;
-  return kickoffPast;
+  // Overlay miss ≠ FT. A live UCL book whose row is not on the board yet
+  // (live= lag, started game dropped off next=) must stay in All / Football.
+  return false;
 }
 
 /** HIP-4 contest whose two sides are this fixture (order-independent). */
@@ -868,34 +875,63 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
 /**
- * Slider order: kickoff soon / in-play → ending soon → later kickoff → live
- * → upcoming → later → long-dated. Season winners (30d+ to settle) sit last.
+ * Slider order: in-play → kickoff soon → ending soon → later kickoff → live
+ * (no start) → upcoming → later → long-dated. Season winners sit last.
  */
 export function featuredUrgencyRank(m: ListedMarket, now = Date.now()): number {
   const expLeft = m.expiresAt != null ? m.expiresAt - now : Number.POSITIVE_INFINITY;
   const startLeft = m.startsAt != null ? m.startsAt - now : Number.POSITIVE_INFINITY;
   const notExpired = m.expiresAt == null || m.expiresAt > now;
-  // Upcoming / in-play contests beat 48h tape so a same-day kickoff is not
-  // dropped from All for a 5-minute crypto binary. Do not keep boosting a
-  // contest after the match window — FT books were starring on All.
-  if (m.startsAt != null && notExpired && startLeft <= 36 * HOUR_MS && startLeft > 0) {
-    return 0;
-  }
-  if (m.startsAt != null && notExpired && startLeft <= 0 && startLeft > -2.5 * HOUR_MS) {
-    return 0;
-  }
-  if (expLeft > 0 && expLeft <= ENDING_SOON_WINDOW_MS) return 1;
-  if (startLeft > 0 && startLeft <= 7 * DAY_MS) return 2;
-  if (m.status === 'live') return 3;
-  if (m.status === 'upcoming') return 4;
-  if (expLeft > 30 * DAY_MS) return 6;
-  return 5;
+  // In-play beats tomorrow’s kickoff. No 2.5h cliff — UCL extra time is still live.
+  if (m.startsAt != null && notExpired && startLeft <= 0) return 0;
+  if (m.startsAt != null && notExpired && startLeft <= 36 * HOUR_MS) return 1;
+  if (expLeft > 0 && expLeft <= ENDING_SOON_WINDOW_MS) return 2;
+  if (startLeft > 0 && startLeft <= 7 * DAY_MS) return 3;
+  if (m.status === 'live') return 4;
+  if (m.status === 'upcoming') return 5;
+  if (expLeft > 30 * DAY_MS) return 7;
+  return 6;
 }
 
 function featuredSoonMs(m: ListedMarket, now: number): number {
+  // In-play: same bucket, then volume. Do not lose a live UCL book to a
+  // later resolutionDeadline vs another live match.
+  if (m.startsAt != null && m.startsAt <= now) return 0;
   if (m.startsAt != null && m.startsAt > now) return m.startsAt;
   if (m.expiresAt != null && m.expiresAt > now) return m.expiresAt;
   return Number.POSITIVE_INFINITY;
+}
+
+/** Live overlay row that joins the highest-volume HIP-4 contest. */
+export function pickFeaturedFootballFixture<
+  T extends CatalogFixture & { live?: boolean; finished?: boolean },
+>(
+  fixtures: readonly T[] | null | undefined,
+  markets: ListedMarket[],
+  heldOutcomeIds?: Iterable<number> | null,
+): T | null {
+  const rows = (fixtures ?? []).filter((f) => !f.finished);
+  const live = rows.filter((f) => f.live);
+  const pool = live.length ? live : rows;
+  if (!pool.length) return null;
+  let best: T | null = null;
+  let bestVol = -1;
+  let bestHasBook = false;
+  for (const f of pool) {
+    const book = hip4ContestForTeams(markets, f.home.name, f.away.name, heldOutcomeIds);
+    const vol = book ? questionVolumeUsd(markets, book) : -1;
+    const hasBook = book != null;
+    if (
+      !best ||
+      (hasBook && !bestHasBook) ||
+      (hasBook === bestHasBook && vol > bestVol)
+    ) {
+      best = f;
+      bestVol = vol;
+      bestHasBook = hasBook;
+    }
+  }
+  return best;
 }
 
 function compareFeaturedLead(catalog: ListedMarket[], now: number) {

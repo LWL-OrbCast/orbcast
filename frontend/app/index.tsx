@@ -28,6 +28,7 @@ import {
   catalogListRows,
   featuredCatalogMarkets,
   hip4ContestForTeams,
+  pickFeaturedFootballFixture,
   sportOnlyChipForMarket,
   trendingCatalogMarkets,
 } from '../src/lib/marketCatalog';
@@ -94,7 +95,11 @@ export default function HomeScreen() {
     () => featuredCatalogMarkets(all, chip, 1, heldOutcomeIds, fixtures),
     [all, chip, heldOutcomeIds, fixtures],
   );
-  const eplFixture = eplQuery.data?.configured ? eplQuery.data.featured ?? null : null;
+  const eplFixture =
+    pickFeaturedFootballFixture(fixtures, all, heldOutcomeIds) ??
+    (eplQuery.data?.configured && eplQuery.data.featured && !eplQuery.data.featured.finished
+      ? eplQuery.data.featured
+      : null);
   const eplBook = useMemo(() => {
     if (!eplFixture) return null;
     return hip4ContestForTeams(all, eplFixture.home.name, eplFixture.away.name, heldOutcomeIds);

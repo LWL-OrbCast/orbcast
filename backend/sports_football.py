@@ -276,18 +276,34 @@ def _dedupe_fixtures(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out
 
 
+# Overlay pin when HIP-4 volume is unknown: UCL first, then domestic, then UEL.
+_FEATURED_LEAGUE_RANK = {
+    UCL_LEAGUE_ID: 0,
+    EPL_LEAGUE_ID: 1,
+    LALIGA_LEAGUE_ID: 2,
+    SERIE_A_LEAGUE_ID: 3,
+    UEL_LEAGUE_ID: 4,
+    UECL_LEAGUE_ID: 5,
+}
+
+
+def _featured_sort_key(row: Dict[str, Any]) -> tuple:
+    return (
+        _FEATURED_LEAGUE_RANK.get(_league_id(row), 9),
+        row.get("elapsed") is None,
+        -(row.get("elapsed") or 0),
+        row.get("kickoffAt") or 0,
+    )
+
+
 def _pick_featured(
     live: List[Dict[str, Any]], upcoming: List[Dict[str, Any]]
 ) -> Optional[Dict[str, Any]]:
-    epl_live = [r for r in live if _league_id(r) == EPL_LEAGUE_ID]
-    if epl_live:
-        return epl_live[0]
     if live:
-        return live[0]
-    epl_up = [r for r in upcoming if _league_id(r) == EPL_LEAGUE_ID]
-    if epl_up:
-        return epl_up[0]
-    return upcoming[0] if upcoming else None
+        return sorted(live, key=_featured_sort_key)[0]
+    if upcoming:
+        return sorted(upcoming, key=_featured_sort_key)[0]
+    return None
 
 
 def _normalize_event(ev: Any) -> Optional[Dict[str, Any]]:
@@ -311,13 +327,7 @@ async def _fetch_live() -> List[Dict[str, Any]]:
     # that spends a quota unit on every league worldwide.
     raw = await _get("/fixtures", {"live": LIVE_LEAGUE_IDS})
     rows = [n for n in (_normalize_fixture(x) for x in raw) if n and _is_tracked(n)]
-    rows.sort(
-        key=lambda r: (
-            0 if _league_id(r) == EPL_LEAGUE_ID else 1,
-            r.get("elapsed") is None,
-            -(r.get("elapsed") or 0),
-        )
-    )
+    rows.sort(key=_featured_sort_key)
     return rows
 
 
@@ -350,12 +360,7 @@ async def _fetch_upcoming() -> List[Dict[str, Any]]:
             logger.warning("api-sports upcoming league failed: %s", type(batch).__name__)
             continue
         rows.extend(batch)
-    rows.sort(
-        key=lambda r: (
-            0 if _league_id(r) == EPL_LEAGUE_ID else 1,
-            r.get("kickoffAt") or 0,
-        )
-    )
+    rows.sort(key=_featured_sort_key)
     return rows
 
 

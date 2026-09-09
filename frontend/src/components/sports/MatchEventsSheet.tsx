@@ -14,7 +14,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   fetchFootballEvents,
-  formatFootballEvent,
+  footballEventKind,
+  footballEventLabel,
+  footballEventMinute,
+  type FootballEvent,
+  type FootballEventKind,
   type FootballFixture,
 } from '../../lib/sportsFootball';
 import { colors } from '../../theme/colors';
@@ -24,6 +28,99 @@ type Props = {
   fixture: FootballFixture;
   onClose: () => void;
 };
+
+function EventGlyph({ kind }: { kind: FootballEventKind }) {
+  if (kind === 'goal' || kind === 'penalty') {
+    return (
+      <View style={[styles.glyph, styles.glyphGoal]}>
+        <Ionicons name="football" size={16} color={colors.accent.goldDark} />
+      </View>
+    );
+  }
+  if (kind === 'ownGoal' || kind === 'missedPenalty') {
+    return (
+      <View style={[styles.glyph, styles.glyphBad]}>
+        <Ionicons name="football" size={16} color={colors.status.errorDark} />
+      </View>
+    );
+  }
+  if (kind === 'sub') {
+    return (
+      <View style={[styles.glyph, styles.glyphSub]}>
+        <Ionicons name="swap-vertical" size={16} color="#2563EB" />
+      </View>
+    );
+  }
+  if (kind === 'yellow') {
+    return (
+      <View style={[styles.glyph, styles.glyphYellow]}>
+        <View style={[styles.card, { backgroundColor: '#EAB308' }]} />
+      </View>
+    );
+  }
+  if (kind === 'red') {
+    return (
+      <View style={[styles.glyph, styles.glyphBad]}>
+        <View style={[styles.card, { backgroundColor: colors.status.errorDark }]} />
+      </View>
+    );
+  }
+  if (kind === 'var') {
+    return (
+      <View style={[styles.glyph, styles.glyphMuted]}>
+        <Ionicons name="eye-outline" size={15} color={colors.text.secondary} />
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.glyph, styles.glyphMuted]}>
+      <View style={styles.dot} />
+    </View>
+  );
+}
+
+function EventRow({ ev, last }: { ev: FootballEvent; last?: boolean }) {
+  const kind = footballEventKind(ev);
+  const minute = footballEventMinute(ev);
+  const label = footballEventLabel(ev);
+  const team = ev.team?.trim();
+  const off = ev.assist?.trim();
+  const on = ev.player?.trim();
+  const meta = [label, team].filter(Boolean).join(' · ');
+  const extra = (kind === 'goal' || kind === 'penalty') && off ? `Assist ${off}` : null;
+
+  return (
+    <View style={[styles.row, last && styles.rowLast]}>
+      <EventGlyph kind={kind} />
+      <View style={styles.rowBody}>
+        {kind === 'sub' ? (
+          <>
+            {off ? (
+              <Text style={styles.primary}>
+                <Text style={styles.arrowOff}>↓  </Text>
+                {off}
+              </Text>
+            ) : null}
+            {on ? (
+              <Text style={styles.primary}>
+                <Text style={styles.arrowOn}>↑  </Text>
+                {on}
+              </Text>
+            ) : null}
+            {!off && !on ? (
+              <Text style={styles.primary}>{team || label}</Text>
+            ) : null}
+          </>
+        ) : (
+          <Text style={styles.primary}>{on || team || label}</Text>
+        )}
+        {meta ? <Text style={styles.meta}>{meta}</Text> : null}
+        {extra ? <Text style={styles.extra}>{extra}</Text> : null}
+      </View>
+      {minute ? <Text style={styles.minute}>{minute}</Text> : null}
+    </View>
+  );
+}
 
 export function MatchEventsSheet({ fixture, onClose }: Props) {
   const { t } = useTranslation();
@@ -74,14 +171,13 @@ export function MatchEventsSheet({ fixture, onClose }: Props) {
             ) : !rows.length ? (
               <Text style={styles.empty}>{t('hip4.featured.eventsEmpty')}</Text>
             ) : (
-              rows.map((ev, i) => {
-                const line = formatFootballEvent(ev);
-                return line ? (
-                  <Text key={`${i}-${line}`} style={styles.line}>
-                    {line}
-                  </Text>
-                ) : null;
-              })
+              rows.map((ev, i) => (
+                <EventRow
+                  key={`${i}-${footballEventMinute(ev)}-${ev.player}-${ev.type}`}
+                  ev={ev}
+                  last={i === rows.length - 1}
+                />
+              ))
             )}
           </ScrollView>
         </View>
@@ -94,15 +190,15 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15,23,42,0.45)',
   },
   sheet: {
-    maxHeight: '80%',
-    borderRadius: 20,
+    maxHeight: '82%',
+    borderRadius: 22,
     backgroundColor: colors.background.card,
     borderWidth: 1,
     borderColor: colors.border.primary,
@@ -113,8 +209,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
     paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingTop: 18,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.primary,
   },
@@ -125,7 +221,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   sub: {
-    marginTop: 2,
+    marginTop: 3,
     fontFamily: fonts.semibold,
     fontSize: 12,
     color: colors.text.secondary,
@@ -133,24 +229,88 @@ const styles = StyleSheet.create({
   close: {
     padding: 4,
   },
-  list: { maxHeight: 420 },
+  list: { maxHeight: 440 },
   listInner: {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    gap: 8,
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 14,
   },
-  line: {
-    fontFamily: fonts.semibold,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.primary,
+  },
+  rowLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 8,
+  },
+  rowBody: { flex: 1, minWidth: 0, gap: 4 },
+  glyph: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glyphGoal: { backgroundColor: '#ECFDF3' },
+  glyphSub: { backgroundColor: '#EFF6FF' },
+  glyphYellow: { backgroundColor: '#FFFBEB' },
+  glyphBad: { backgroundColor: '#FFF1F2' },
+  glyphMuted: { backgroundColor: colors.background.secondary },
+  card: {
+    width: 11,
+    height: 15,
+    borderRadius: 2,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.text.muted,
+  },
+  primary: {
+    fontFamily: fonts.bold,
     fontSize: 14,
     color: colors.text.primary,
     lineHeight: 20,
+  },
+  meta: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    color: colors.text.secondary,
+    lineHeight: 16,
+  },
+  extra: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    color: colors.text.muted,
+    lineHeight: 16,
+  },
+  minute: {
+    fontFamily: fonts.extraBold,
+    fontSize: 12,
+    color: colors.text.secondary,
+    fontVariant: ['tabular-nums'],
+    paddingTop: 2,
+  },
+  arrowOff: {
+    fontFamily: fonts.extraBold,
+    color: colors.status.errorDark,
+  },
+  arrowOn: {
+    fontFamily: fonts.extraBold,
+    color: colors.accent.goldDark,
   },
   empty: {
     fontFamily: fonts.semibold,
     fontSize: 14,
     color: colors.text.secondary,
     textAlign: 'center',
-    paddingVertical: 28,
+    paddingVertical: 32,
   },
-  pad: { marginVertical: 28 },
+  pad: { marginVertical: 32 },
 });

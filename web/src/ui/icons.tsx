@@ -261,6 +261,46 @@ export function IconFootball(p: IconProps) {
   );
 }
 
+export function IconGoalBall(p: IconProps) {
+  return (
+    <Svg {...p} fill="currentColor" stroke="none">
+      <circle cx="12" cy="12" r="8.2" />
+      <path
+        fill="#fff"
+        d="M12 5.4 13.6 8.6l3.5.3-2.7 2.6.8 3.4L12 13.3 8.8 14.9l.8-3.4-2.7-2.6 3.5-.3Z"
+      />
+    </Svg>
+  );
+}
+
+export function IconSubArrows(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M7 16V8" />
+      <path d="M4.5 10.5 7 8l2.5 2.5" />
+      <path d="M17 8v8" />
+      <path d="M14.5 13.5 17 16l2.5-2.5" />
+    </Svg>
+  );
+}
+
+export function IconCardRect(p: IconProps) {
+  return (
+    <Svg {...p} fill="currentColor" stroke="none">
+      <rect x="8" y="4.5" width="8" height="15" rx="1.4" />
+    </Svg>
+  );
+}
+
+export function IconVarWhistle(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 12h6l1.2-2H15a5 5 0 1 1 0 8h-3.8L10 16H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2Z" />
+      <circle cx="16.5" cy="12" r="1.2" />
+    </Svg>
+  );
+}
+
 export function IconBasketball(p: IconProps) {
   return (
     <Svg {...p}>

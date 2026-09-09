@@ -139,7 +139,7 @@ const TEAMS: { id: number; names: string[] }[] = [
 /** Bundled symbols — no API-Sports id (placeholder or unverified CDN slot). */
 const LOCAL_TEAMS: { key: string; names: string[] }[] = [
   { key: 'marseille', names: ['Marseille', 'Olympique Marseille', 'Olympique de Marseille'] },
-  { key: 'slovan', names: ['Slovan Bratislava', 'SK Slovan Bratislava', 'ŠK Slovan Bratislava'] },
+  { key: 'slovan', names: ['Slovan Bratislava', 'SK Slovan Bratislava', 'ŠK Slovan Bratislava', 'S.Bratislava', 'Bratislava'] },
   { key: 'lask', names: ['LASK', 'LASK Linz'] },
   { key: 'viking', names: ['Viking FK', 'Viking'] },
 ];

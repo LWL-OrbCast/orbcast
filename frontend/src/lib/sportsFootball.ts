@@ -11,6 +11,7 @@ import { isTimestampOnLocalDay } from './marketCatalog';
 export type {
   FootballBoard,
   FootballEvent,
+  FootballEventKind,
   FootballFixture,
   FootballGoals,
   FootballTeam,
@@ -22,9 +23,13 @@ export {
   canOpenFootballEvents,
   catalogFootballFixtures,
   footballChromeFixture,
+  footballEventKind,
+  footballEventLabel,
+  footballEventMinute,
   footballLeagueFromCompetition,
   formatFootballEvent,
   previewFootballEvents,
+  shouldFetchFootballEvents,
   syntheticFootballFixture,
 } from './footballChrome';
 

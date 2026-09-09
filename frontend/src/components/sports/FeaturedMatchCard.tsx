@@ -21,9 +21,11 @@ import {
   boardFixtures,
   canOpenFootballEvents,
   fetchEplBoard,
+  fetchFootballEvents,
   formatFootballEvent,
   formatKickoff,
   previewFootballEvents,
+  shouldFetchFootballEvents,
   type FootballFixture,
 } from '../../lib/sportsFootball';
 import { MatchEventsSheet } from './MatchEventsSheet';
@@ -294,6 +296,15 @@ export function FootballFeaturedCard({
   const { t } = useTranslation();
   const [now, setNow] = useState(() => Date.now());
   const [eventsOpen, setEventsOpen] = useState(false);
+  const seededEvents = fixture.events ?? [];
+  const eventsQ = useQuery({
+    queryKey: ['sports', 'football', 'events', fixture.fixtureId],
+    queryFn: () => fetchFootballEvents(fixture.fixtureId),
+    enabled: shouldFetchFootballEvents(fixture),
+    staleTime: 45_000,
+    retry: 1,
+  });
+  const events = eventsQ.data?.events?.length ? eventsQ.data.events : seededEvents;
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -302,15 +313,15 @@ export function FootballFeaturedCard({
 
   const showScore = fixture.live || fixture.finished;
   const mid = showScore ? scoreText(fixture) : '';
-  const previewLines = previewFootballEvents(fixture.events)
+  const previewLines = previewFootballEvents(events)
     .map(formatFootballEvent)
     .filter(Boolean);
-  const showEventsToggle = canOpenFootballEvents(fixture);
+  const showEventsToggle = canOpenFootballEvents({ ...fixture, events });
   const leagueLogo = fixture.league.logo;
   const kickoffHint =
     !fixture.live && !fixture.finished && fixture.kickoffAt
       ? formatKickoff(fixture.kickoffAt)
-      : fixture.venue;
+      : null;
 
   return (
     <View style={[styles.wrap, reserveDots && styles.wrapDots]}>
@@ -395,7 +406,7 @@ export function FootballFeaturedCard({
       </CardChrome>
     </Pressable>
       {eventsOpen ? (
-        <MatchEventsSheet fixture={fixture} onClose={() => setEventsOpen(false)} />
+        <MatchEventsSheet fixture={{ ...fixture, events }} onClose={() => setEventsOpen(false)} />
       ) : null}
     </View>
   );

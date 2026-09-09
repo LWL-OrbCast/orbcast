@@ -29,6 +29,8 @@ export type FootballEvent = {
   detail: string;
   team: string;
   player: string;
+  /** Goal assister, or the player coming off on a substitution. */
+  assist?: string;
 };
 
 export type FootballFixture = {
@@ -174,16 +176,87 @@ export function canOpenFootballEvents(fixture: {
   return fixture.fixtureId > 0 && Boolean(fixture.live || fixture.finished);
 }
 
+/** Visible live/FT card with no board events — fetch the same cached timeline. */
+export function shouldFetchFootballEvents(fixture: {
+  fixtureId: number;
+  live?: boolean;
+  finished?: boolean;
+  events?: unknown[] | null;
+}): boolean {
+  if (fixture.fixtureId <= 0) return false;
+  if ((fixture.events?.length ?? 0) > 0) return false;
+  return Boolean(fixture.live || fixture.finished);
+}
+
+export type FootballEventKind =
+  | 'goal'
+  | 'ownGoal'
+  | 'penalty'
+  | 'missedPenalty'
+  | 'yellow'
+  | 'red'
+  | 'sub'
+  | 'var'
+  | 'other';
+
+export function footballEventKind(ev: FootballEvent): FootballEventKind {
+  const type = (ev.type || '').toLowerCase();
+  const detail = (ev.detail || '').toLowerCase();
+  if (type === 'goal' || /\bgoal\b/.test(detail)) {
+    if (detail.includes('own')) return 'ownGoal';
+    if (detail.includes('missed')) return 'missedPenalty';
+    if (detail.includes('penalty')) return 'penalty';
+    return 'goal';
+  }
+  if (type === 'card' || detail.includes('card')) {
+    if (detail.includes('red') || detail.includes('second yellow')) return 'red';
+    return 'yellow';
+  }
+  if (type === 'subst' || type.includes('subst') || detail.includes('subst')) return 'sub';
+  if (type === 'var') return 'var';
+  return 'other';
+}
+
+export function footballEventMinute(ev: FootballEvent): string {
+  if (ev.elapsed == null) return '';
+  return ev.extra != null ? `${ev.elapsed}+${ev.extra}'` : `${ev.elapsed}'`;
+}
+
+export function footballEventLabel(ev: FootballEvent): string {
+  switch (footballEventKind(ev)) {
+    case 'goal':
+      return 'Goal';
+    case 'ownGoal':
+      return 'Own goal';
+    case 'penalty':
+      return 'Penalty';
+    case 'missedPenalty':
+      return 'Missed penalty';
+    case 'yellow':
+      return 'Yellow card';
+    case 'red':
+      return 'Red card';
+    case 'sub':
+      return 'Substitution';
+    case 'var':
+      return ev.detail?.trim() || 'VAR';
+    default:
+      return (ev.detail || ev.type || 'Event').trim();
+  }
+}
+
 export function formatFootballEvent(ev: FootballEvent): string {
-  const minute =
-    ev.elapsed == null
-      ? ''
-      : ev.extra != null
-        ? `${ev.elapsed}+${ev.extra}'`
-        : `${ev.elapsed}'`;
+  const minute = footballEventMinute(ev);
+  const kind = footballEventKind(ev);
+  if (kind === 'sub') {
+    const off = ev.assist?.trim();
+    const on = ev.player?.trim();
+    const who =
+      off && on ? `${off} → ${on}` : on || off || ev.team;
+    return [minute, who, footballEventLabel(ev)].filter(Boolean).join(' · ');
+  }
   const who = ev.player || ev.team;
-  const what = ev.type === 'Card' ? ev.detail || ev.type : ev.type;
-  return [minute, who, what].filter(Boolean).join(' · ');
+  return [minute, who, footballEventLabel(ev)].filter(Boolean).join(' · ');
 }
 
 /** API fixture when the board has this match; otherwise HIP-4 names + kickoff. */

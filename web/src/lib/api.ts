@@ -8,15 +8,24 @@ import {
   type FootballFixture,
 } from '../../../frontend/src/lib/footballChrome';
 
-export type { FootballBoard, FootballEvent, FootballFixture } from '../../../frontend/src/lib/footballChrome';
+export type {
+  FootballBoard,
+  FootballEvent,
+  FootballEventKind,
+  FootballFixture,
+} from '../../../frontend/src/lib/footballChrome';
 export {
   boardFixtures,
   boardHasLiveFixture,
   canOpenFootballEvents,
   catalogFootballFixtures,
   footballChromeFixture,
+  footballEventKind,
+  footballEventLabel,
+  footballEventMinute,
   formatFootballEvent,
   previewFootballEvents,
+  shouldFetchFootballEvents,
 } from '../../../frontend/src/lib/footballChrome';
 
 export type BuilderConfig = {

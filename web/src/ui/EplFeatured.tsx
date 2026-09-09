@@ -13,8 +13,10 @@ import {
 } from '@hip4';
 import {
   canOpenFootballEvents,
+  fetchFootballEvents,
   formatFootballEvent,
   previewFootballEvents,
+  shouldFetchFootballEvents,
   type EplFixture,
 } from '../lib/api';
 import { interpolate, useCopy } from '../lib/copy';
@@ -295,6 +297,15 @@ export function EplFeatured({
   const { hip4 } = useCopy();
   const [now, setNow] = useState(() => Date.now());
   const [eventsOpen, setEventsOpen] = useState(false);
+  const seededEvents = fixture.events ?? [];
+  const eventsQ = useQuery({
+    queryKey: ['sports', 'football', 'events', fixture.fixtureId],
+    queryFn: () => fetchFootballEvents(fixture.fixtureId),
+    enabled: shouldFetchFootballEvents(fixture),
+    staleTime: 45_000,
+    retry: 1,
+  });
+  const events = eventsQ.data?.events?.length ? eventsQ.data.events : seededEvents;
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
@@ -303,10 +314,10 @@ export function EplFeatured({
 
   const showScore = fixture.live || fixture.finished;
   const mid = showScore ? scoreText(fixture) : '';
-  const previewLines = previewFootballEvents(fixture.events)
+  const previewLines = previewFootballEvents(events)
     .map(formatFootballEvent)
     .filter(Boolean);
-  const showEventsToggle = canOpenFootballEvents(fixture);
+  const showEventsToggle = canOpenFootballEvents({ ...fixture, events });
   const startRemain =
     fixture.kickoffAt != null && fixture.kickoffAt > now
       ? Math.max(0, Math.ceil((fixture.kickoffAt - now) / 1000))
@@ -314,7 +325,7 @@ export function EplFeatured({
   const hint =
     !fixture.live && !fixture.finished && fixture.kickoffAt
       ? formatKickoff(fixture.kickoffAt)
-      : fixture.venue;
+      : null;
 
   return (
     <div className="card-shadow w-full min-w-0 max-w-full overflow-hidden rounded-3xl border border-[var(--border)] bg-white">
@@ -427,7 +438,7 @@ export function EplFeatured({
       ) : null}
       {book ? <Hip4BannerOdds book={book} catalog={catalog} /> : null}
       {eventsOpen ? (
-        <MatchEventsDialog fixture={fixture} onClose={() => setEventsOpen(false)} />
+        <MatchEventsDialog fixture={{ ...fixture, events }} onClose={() => setEventsOpen(false)} />
       ) : null}
       </div>
       </div>

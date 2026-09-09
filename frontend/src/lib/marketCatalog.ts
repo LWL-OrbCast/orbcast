@@ -255,9 +255,11 @@ function teamKeys(name: string): string[] {
     keys.add('olympiquemarseille');
     keys.add('olympiquedemarseille');
   }
-  if (/slovanbratislava/.test(s)) {
+  if (/sbratislava|slovanbratislava|skslovan/.test(s) || s === 'bratislava') {
     keys.add('slovanbratislava');
+    keys.add('sbratislava');
     keys.add('skslovanbratislava');
+    keys.add('bratislava');
   }
   if (/^lask$|^lasklinz$/.test(s)) {
     keys.add('lask');

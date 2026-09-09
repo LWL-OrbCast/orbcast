@@ -312,6 +312,7 @@ def _normalize_event(ev: Any) -> Optional[Dict[str, Any]]:
     t = ev.get("time") if isinstance(ev.get("time"), dict) else {}
     team = ev.get("team") if isinstance(ev.get("team"), dict) else {}
     player = ev.get("player") if isinstance(ev.get("player"), dict) else {}
+    assist = ev.get("assist") if isinstance(ev.get("assist"), dict) else {}
     return {
         "elapsed": t.get("elapsed"),
         "extra": t.get("extra"),
@@ -319,6 +320,7 @@ def _normalize_event(ev: Any) -> Optional[Dict[str, Any]]:
         "detail": ev.get("detail") or "",
         "team": (team.get("name") or "").strip(),
         "player": (player.get("name") or "").strip(),
+        "assist": (assist.get("name") or "").strip(),
     }
 
 

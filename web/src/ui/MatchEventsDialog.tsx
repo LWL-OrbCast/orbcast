@@ -1,12 +1,128 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   fetchFootballEvents,
-  formatFootballEvent,
+  footballEventKind,
+  footballEventLabel,
+  footballEventMinute,
   type EplFixture,
+  type FootballEvent,
+  type FootballEventKind,
 } from '../lib/api';
 import { useCopy } from '../lib/copy';
-import { IconClose } from './icons';
+import {
+  IconCardRect,
+  IconClose,
+  IconGoalBall,
+  IconSubArrows,
+  IconVarWhistle,
+} from './icons';
+
+function EventIcon({ kind }: { kind: FootballEventKind }) {
+  const wrap =
+    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full';
+  if (kind === 'goal' || kind === 'penalty') {
+    return (
+      <span className={`${wrap} bg-[#ECFDF3] text-[var(--accent-dark)]`}>
+        <IconGoalBall size={16} />
+      </span>
+    );
+  }
+  if (kind === 'ownGoal' || kind === 'missedPenalty') {
+    return (
+      <span className={`${wrap} bg-[#FFF1F2] text-[var(--no)]`}>
+        <IconGoalBall size={16} />
+      </span>
+    );
+  }
+  if (kind === 'sub') {
+    return (
+      <span className={`${wrap} bg-[#EFF6FF] text-[#2563EB]`}>
+        <IconSubArrows size={16} />
+      </span>
+    );
+  }
+  if (kind === 'yellow') {
+    return (
+      <span className={`${wrap} bg-[#FFFBEB]`}>
+        <IconCardRect size={15} className="text-[#EAB308]" />
+      </span>
+    );
+  }
+  if (kind === 'red') {
+    return (
+      <span className={`${wrap} bg-[#FFF1F2]`}>
+        <IconCardRect size={15} className="text-[#E11D48]" />
+      </span>
+    );
+  }
+  if (kind === 'var') {
+    return (
+      <span className={`${wrap} bg-[var(--bg-2)] text-[var(--text-2)]`}>
+        <IconVarWhistle size={16} />
+      </span>
+    );
+  }
+  return (
+    <span className={`${wrap} bg-[var(--bg-2)] text-[var(--text-3)]`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+    </span>
+  );
+}
+
+function EventBody({ ev }: { ev: FootballEvent }) {
+  const kind = footballEventKind(ev);
+  const minute = footballEventMinute(ev);
+  const label = footballEventLabel(ev);
+  const team = ev.team?.trim();
+  const assist = ev.assist?.trim();
+  let primary: ReactNode = ev.player?.trim() || team || label;
+  let secondary = [label, team].filter(Boolean).join(' · ');
+  let extra: string | null = null;
+
+  if (kind === 'sub') {
+    const off = assist;
+    const on = ev.player?.trim();
+    primary = (
+      <span className="flex flex-col gap-1">
+        {off ? (
+          <span>
+            <span className="mr-1.5 font-extrabold text-[#E11D48]">↓</span>
+            {off}
+          </span>
+        ) : null}
+        {on ? (
+          <span>
+            <span className="mr-1.5 font-extrabold text-[var(--accent-dark)]">↑</span>
+            {on}
+          </span>
+        ) : null}
+        {!off && !on ? team || label : null}
+      </span>
+    );
+  } else if ((kind === 'goal' || kind === 'penalty') && assist) {
+    extra = `Assist ${assist}`;
+  }
+
+  return (
+    <>
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-bold leading-snug text-[var(--text)]">{primary}</div>
+        {secondary ? (
+          <div className="mt-1 text-xs font-semibold text-[var(--text-2)]">{secondary}</div>
+        ) : null}
+        {extra ? (
+          <div className="mt-0.5 text-xs font-semibold text-[var(--text-3)]">{extra}</div>
+        ) : null}
+      </div>
+      {minute ? (
+        <span className="shrink-0 pt-0.5 text-xs font-extrabold tabular-nums text-[var(--text-2)]">
+          {minute}
+        </span>
+      ) : null}
+    </>
+  );
+}
 
 export function MatchEventsDialog({
   fixture,
@@ -53,7 +169,7 @@ export function MatchEventsDialog({
         className="absolute inset-0 cursor-default bg-[rgba(15,23,42,0.45)]"
         tabIndex={-1}
       />
-      <div className="relative z-10 flex max-h-[min(32rem,80dvh)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.25)]">
+      <div className="relative z-10 flex max-h-[min(34rem,82dvh)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.25)]">
         <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
           <div className="min-w-0">
             <h2 className="text-base font-extrabold">{hip4.featured.events}</h2>
@@ -72,29 +188,30 @@ export function MatchEventsDialog({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
           {q.isPending && !rows.length ? (
-            <p className="py-6 text-center text-sm font-semibold text-[var(--text-2)]">
+            <p className="py-8 text-center text-sm font-semibold text-[var(--text-2)]">
               {hip4.featured.events}…
             </p>
           ) : q.isError && !rows.length ? (
-            <p className="py-6 text-center text-sm font-semibold text-[var(--text-2)]">
+            <p className="py-8 text-center text-sm font-semibold text-[var(--text-2)]">
               {hip4.featured.eventsLoadError}
             </p>
           ) : !rows.length ? (
-            <p className="py-6 text-center text-sm font-semibold text-[var(--text-2)]">
+            <p className="py-8 text-center text-sm font-semibold text-[var(--text-2)]">
               {hip4.featured.eventsEmpty}
             </p>
           ) : (
-            <ol className="space-y-2">
+            <ol className="flex flex-col">
               {rows.map((ev, i) => {
-                const line = formatFootballEvent(ev);
-                return line ? (
+                const kind = footballEventKind(ev);
+                return (
                   <li
-                    key={`${i}-${line}`}
-                    className="text-sm font-semibold leading-snug text-[var(--text)]"
+                    key={`${i}-${footballEventMinute(ev)}-${ev.player}-${ev.type}`}
+                    className="flex items-start gap-3.5 border-b border-[var(--border)] py-3.5 last:border-b-0 last:pb-1 first:pt-1"
                   >
-                    {line}
+                    <EventIcon kind={kind} />
+                    <EventBody ev={ev} />
                   </li>
-                ) : null;
+                );
               })}
             </ol>
           )}

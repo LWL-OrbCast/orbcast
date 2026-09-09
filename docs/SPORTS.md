@@ -75,7 +75,7 @@ This app’s cache-miss spend (phones hit our backend only; logos on `media.api-
 | Always | `GET /fixtures?live=39-140-135-2-3-848` (hyphenated ids — a lone `live=39` is rejected) |
 | Upcoming | `GET /fixtures?league={39\|140\|135\|2\|3\|848}&season=…&next=10` (Pro, 6 calls, 240s TTL). If a league’s `next=` is empty, that league only: `date=today` |
 | Finished | `GET /fixtures?league={39\|140\|135\|2\|3\|848}&season=…&last=10` (6 calls, 240s TTL). FT games drop off `live=` immediately — this is how the catalog knows to hide them |
-| Live featured | `GET /fixtures/events?fixture=…` — **one call returns the whole timeline** (goals, cards, subs). We keep every event (cap 80). The stadium card still previews the last 2; **All events** opens the rest. Other board fixtures fetch the same endpoint on demand (cached 90s). |
+| Live featured | `GET /fixtures/events?fixture=…` on the **visible** live/FT stadium card (and the featured board row). **One call returns the whole timeline**. Cache 90s; the card previews the last 2; **All events** is free if cache is warm. Do not prefetch every live board fixture. |
 
 Do **not** call `live=all` (whole-world live list). TTL is ~90s for the board / live / events, ~240s for upcoming and finished. The composed board is shared in Supabase `news_cache` (`sports:football:board`) so every replica reads the same payload.
 

@@ -2,7 +2,12 @@ import React from 'react';
 import { Image, StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { ListedMarket } from '../../lib/hip4';
-import { symbolKeyForMarket, symbolObjectFit, type MarketSymbolKey } from '../../lib/marketSymbol';
+import {
+  competitionMarkUri,
+  symbolKeyForMarket,
+  symbolObjectFit,
+  type MarketSymbolKey,
+} from '../../lib/marketSymbol';
 import { sportGlyph } from '../../lib/sportGlyph';
 import { colors } from '../../theme/colors';
 
@@ -40,6 +45,7 @@ const SYMBOL_SOURCE: Record<MarketSymbolKey, ImageSourcePropType> = {
   slovan: require('../../../assets/images/symbols/slovan-logo.webp'),
   lask: require('../../../assets/images/symbols/lask-icon.webp'),
   viking: require('../../../assets/images/symbols/viking-icon.webp'),
+  ufc: require('../../../assets/images/symbols/ufc-icon.png'),
 };
 
 type BoxProps = {
@@ -56,8 +62,16 @@ function SymbolImage({
 }: BoxProps & { symbolKey: MarketSymbolKey }) {
   const fit = symbolObjectFit(symbolKey);
   const r = radius ?? Math.round(size * 0.32);
+  const dark = symbolKey === 'ufc';
   return (
-    <View style={[styles.box, { width: size, height: size, borderRadius: r }, style]}>
+    <View
+      style={[
+        styles.box,
+        dark && styles.boxDark,
+        { width: size, height: size, borderRadius: r },
+        style,
+      ]}
+    >
       <Image
         source={SYMBOL_SOURCE[symbolKey]}
         style={[
@@ -66,6 +80,24 @@ function SymbolImage({
           { borderRadius: r },
         ]}
         resizeMode={fit}
+      />
+    </View>
+  );
+}
+
+function RemoteMark({
+  uri,
+  size,
+  radius,
+  style,
+}: BoxProps & { uri: string }) {
+  const r = radius ?? Math.round(size * 0.32);
+  return (
+    <View style={[styles.box, { width: size, height: size, borderRadius: r }, style]}>
+      <Image
+        source={{ uri }}
+        style={[styles.img, styles.imgPad, { borderRadius: r }]}
+        resizeMode="contain"
       />
     </View>
   );
@@ -87,6 +119,10 @@ export function MarketSymbol({
   if (key) {
     return <SymbolImage symbolKey={key} size={size} radius={radius} style={style} />;
   }
+  const remote = competitionMarkUri(market);
+  if (remote) {
+    return <RemoteMark uri={remote} size={size} radius={radius} style={style} />;
+  }
   const r = radius ?? Math.round(size * 0.32);
   return (
     <View style={[styles.box, { width: size, height: size, borderRadius: r }, style]}>
@@ -105,6 +141,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF3',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  boxDark: {
+    backgroundColor: '#111111',
   },
   img: {
     width: '100%',

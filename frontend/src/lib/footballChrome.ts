@@ -90,6 +90,21 @@ const LEAGUE_MEDIA: Record<number, { id: number; name: string; logo: string }> =
     name: 'UEFA Europa Conference League',
     logo: 'https://media.api-sports.io/football/leagues/848.png',
   },
+  48: {
+    id: 48,
+    name: 'EFL Cup',
+    logo: 'https://media.api-sports.io/football/leagues/48.png',
+  },
+  78: {
+    id: 78,
+    name: 'Bundesliga',
+    logo: 'https://media.api-sports.io/football/leagues/78.png',
+  },
+  61: {
+    id: 61,
+    name: 'Ligue 1',
+    logo: 'https://media.api-sports.io/football/leagues/61.png',
+  },
 };
 
 export function footballLeagueFromCompetition(competition: string): {
@@ -98,6 +113,9 @@ export function footballLeagueFromCompetition(competition: string): {
   logo: string;
 } {
   const s = competition.toLowerCase();
+  if (/efl\s*cup|carabao|\bleague\s*cup\b/.test(s)) return LEAGUE_MEDIA[48];
+  if (/\bbundesliga\b/.test(s)) return LEAGUE_MEDIA[78];
+  if (/\bligue\s*1\b|\bligue1\b/.test(s)) return LEAGUE_MEDIA[61];
   if (/la\s*liga|laliga|spanish\s*primera/.test(s)) return LEAGUE_MEDIA[140];
   if (/serie\s*a|seria\s*a/.test(s)) return LEAGUE_MEDIA[135];
   if (/premier\s*league|\bepl\b|english\s*premier/.test(s)) return LEAGUE_MEDIA[39];
@@ -106,6 +124,11 @@ export function footballLeagueFromCompetition(competition: string): {
   if (/champions\s*league|\bucl\b/.test(s)) return LEAGUE_MEDIA[2];
   const name = competition.trim();
   return { id: 0, name: name || 'Football', logo: '' };
+}
+
+export function footballCompetitionLogoUri(competition: string | undefined): string | null {
+  const logo = footballLeagueFromCompetition(competition ?? '').logo;
+  return logo || null;
 }
 
 export function boardFixtures(board?: FootballBoard | null): FootballFixture[] {

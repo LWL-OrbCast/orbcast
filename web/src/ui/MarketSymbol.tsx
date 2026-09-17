@@ -1,6 +1,11 @@
 import type { ListedMarket } from '@hip4';
 import { catalogChipForMarket } from '@hip4/catalog';
-import { symbolKeyForMarket, symbolObjectFit, type MarketSymbolKey } from '@hip4/symbol';
+import {
+  competitionMarkUri,
+  symbolKeyForMarket,
+  symbolObjectFit,
+  type MarketSymbolKey,
+} from '@hip4/symbol';
 import { SportIcon } from './icons';
 
 import btc from '../../../frontend/assets/images/symbols/btc-icon.webp';
@@ -36,6 +41,7 @@ import marseille from '../../../frontend/assets/images/symbols/marseille-icon.we
 import slovan from '../../../frontend/assets/images/symbols/slovan-logo.webp';
 import lask from '../../../frontend/assets/images/symbols/lask-icon.webp';
 import viking from '../../../frontend/assets/images/symbols/viking-icon.webp';
+import ufc from '../../../frontend/assets/images/symbols/ufc-icon.png';
 
 const SYMBOL_SRC: Record<MarketSymbolKey, string> = {
   btc,
@@ -71,25 +77,31 @@ const SYMBOL_SRC: Record<MarketSymbolKey, string> = {
   slovan,
   lask,
   viking,
+  ufc,
 };
 
 function MarkImg({
-  symbolKey,
+  src,
   size,
   className = '',
+  fit,
+  dark = false,
 }: {
-  symbolKey: MarketSymbolKey;
+  src: string;
   size: number;
   className?: string;
+  fit: 'cover' | 'contain';
+  dark?: boolean;
 }) {
-  const fit = symbolObjectFit(symbolKey);
   return (
     <span
-      className={`flex shrink-0 items-center justify-center overflow-hidden bg-[#ECFDF3] ${className}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden ${
+        dark ? 'bg-[#111]' : 'bg-[#ECFDF3]'
+      } ${className}`}
       style={{ width: size, height: size }}
     >
       <img
-        src={SYMBOL_SRC[symbolKey]}
+        src={src}
         alt=""
         draggable={false}
         className={`h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain p-[12%]'}`}
@@ -111,7 +123,19 @@ export function MarketSymbol({
 }) {
   const key = symbolKeyForMarket(market, { questionLevel });
   if (key) {
-    return <MarkImg symbolKey={key} size={size} className={className} />;
+    return (
+      <MarkImg
+        src={SYMBOL_SRC[key]}
+        size={size}
+        className={className}
+        fit={symbolObjectFit(key)}
+        dark={key === 'ufc'}
+      />
+    );
+  }
+  const remote = competitionMarkUri(market);
+  if (remote) {
+    return <MarkImg src={remote} size={size} className={className} fit="contain" />;
   }
   return (
     <span

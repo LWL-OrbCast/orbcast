@@ -5,6 +5,7 @@
  */
 
 import { displayOracleSymbol, marketSpecFields, type ListedMarket } from './hip4';
+import { footballCompetitionLogoUri } from './footballChrome';
 import { chipFromSportSignals } from './sportsCatalog';
 
 export type MarketSymbolKey =
@@ -40,7 +41,8 @@ export type MarketSymbolKey =
   | 'marseille'
   | 'slovan'
   | 'lask'
-  | 'viking';
+  | 'viking'
+  | 'ufc';
 
 /** Photo-style marks that should fill the rounded box. Logos use contain. */
 const COVER_KEYS = new Set<MarketSymbolKey>(['lol', 'epl']);
@@ -114,6 +116,15 @@ export function symbolObjectFit(key: MarketSymbolKey): 'cover' | 'contain' {
   return COVER_KEYS.has(key) ? 'cover' : 'contain';
 }
 
+/** Bundled mark first; otherwise a media.api-sports.io league logo (no quota). */
+export function competitionMarkUri(market: ListedMarket): string | null {
+  const fields = marketSpecFields(market);
+  return (
+    footballCompetitionLogoUri(fields.competition) ||
+    footballCompetitionLogoUri(displayHay(market))
+  );
+}
+
 /**
  * @param questionLevel  Use the event/league mark (ignore a single-team `participant`).
  *                       Trending / featured / ticket headings show the question title.
@@ -145,6 +156,7 @@ export function symbolKeyForMarket(
     );
     if (chip === 'nfl') return 'nfl';
     if (chip === 'mlb') return 'mlb';
+    if (chip === 'mma') return 'ufc';
   }
   return null;
 }
@@ -192,9 +204,10 @@ function leagueKey(fields: Record<string, string>, market: ListedMarket): Market
   if (/\bus\s*[- ]?open\b/i.test(hay) && !/\b(golf|pga|surfing|open\s+cup)\b/i.test(hay)) {
     return 'usopen';
   }
-  if (/uefa|champions league/i.test(hay)) return 'uefa';
+  if (/uefa|champions league|europa league/i.test(hay)) return 'uefa';
   if (/\bnfl\b|national football league/i.test(hay)) return 'nfl';
   if (/\bmlb\b|major league baseball|\bbaseball\b/i.test(hay)) return 'mlb';
+  if (/\bufc\b|\bmma\b/i.test(hay)) return 'ufc';
   if (/federal reserve|\bfomc\b|federal funds|\bthe fed\b|\bfed\b/i.test(hay)) return 'fed';
   return null;
 }

@@ -269,6 +269,27 @@ function teamKeys(name: string): string[] {
     keys.add('viking');
     keys.add('vikingfk');
   }
+  if (/^ofi$|^oficrete/.test(s)) {
+    keys.add('ofi');
+    keys.add('oficrete');
+  }
+  if (/hoffenheim/.test(s)) {
+    keys.add('hoffenheim');
+    keys.add('tsghoffenheim');
+    keys.add('1899hoffenheim');
+  }
+  if (
+    s === 'union' ||
+    /unionstgilloise|unionsaintgilloise|^unionsg$/.test(s)
+  ) {
+    keys.add('unionstgilloise');
+    keys.add('unionsaintgilloise');
+    keys.add('unionsg');
+  }
+  if (/ferencvaros/.test(s)) {
+    keys.add('ferencvaros');
+    keys.add('ferencvarositc');
+  }
   return [...keys].filter(Boolean);
 }
 

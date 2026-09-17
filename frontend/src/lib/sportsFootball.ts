@@ -26,6 +26,7 @@ export {
   footballEventKind,
   footballEventLabel,
   footballEventMinute,
+  footballCompetitionLogoUri,
   footballLeagueFromCompetition,
   formatFootballEvent,
   previewFootballEvents,

@@ -292,6 +292,22 @@ let midsCache: { at: number; value: Record<string, string> } | null = null;
 let volumeCache: { at: number; value: Record<string, number> } | null = null;
 let volumeEnrichInflight: Promise<Record<string, number>> | null = null;
 let tapeVolumeCache: { at: number; value: Record<number, number> } | null = null;
+const volumeListeners = new Set<(byCoin: Record<string, number>) => void>();
+
+/** React Query patches HIP-4 rows when tape volume lands after first paint. */
+export function subscribeOutcomeVolumes(
+  fn: (byCoin: Record<string, number>) => void,
+): () => void {
+  volumeListeners.add(fn);
+  if (volumeCache?.value) fn(volumeCache.value);
+  return () => {
+    volumeListeners.delete(fn);
+  };
+}
+
+function notifyOutcomeVolumes(byCoin: Record<string, number>) {
+  for (const fn of volumeListeners) fn(byCoin);
+}
 
 /** encoding = 10 * outcomeId + side  →  assetId = 100_000_000 + encoding */
 export function outcomeEncoding(outcomeId: number, side: OutcomeSide): number {
@@ -742,11 +758,39 @@ function applyTapeVolumes(
   return changed ? next : byCoin;
 }
 
+function mergeCachedVolumes(
+  spotVol: Record<string, number>,
+  outcomeIds: number[],
+): Record<string, number> {
+  const now = Date.now();
+  const tapeFresh =
+    tapeVolumeCache && now - tapeVolumeCache.at < TAPE_VOLUME_TTL_MS
+      ? tapeVolumeCache.value
+      : null;
+  if (!tapeFresh) return spotVol;
+  const missing = outcomeIds.filter((id) => id > 0 && dayVolumeUsd(spotVol, id) <= 0);
+  if (!missing.length) return spotVol;
+  return applyTapeVolumes(spotVol, missing, tapeFresh);
+}
+
+function prioritizeIdsForTape(listed: ListedMarket[]): number[] {
+  const rank = (m: ListedMarket) =>
+    m.status === 'live' ? 0 : m.status === 'upcoming' ? 1 : 2;
+  return [...listed]
+    .sort((a, b) => {
+      const d = rank(a) - rank(b);
+      if (d !== 0) return d;
+      return (a.startsAt ?? a.expiresAt ?? Infinity) - (b.startsAt ?? b.expiresAt ?? Infinity);
+    })
+    .map((m) => m.outcomeId)
+    .filter((id) => id > 0);
+}
+
 async function ensureOutcomeVolumes(
   byCoin: Record<string, number>,
-  outcomeIds: number[],
+  listed: ListedMarket[],
 ): Promise<Record<string, number>> {
-  const ids = outcomeIds.filter((id) => id > 0);
+  const ids = prioritizeIdsForTape(listed);
   const missing = ids.filter((id) => dayVolumeUsd(byCoin, id) <= 0);
   if (!missing.length) return byCoin;
 
@@ -756,7 +800,10 @@ async function ensureOutcomeVolumes(
   const needTape = missing.filter((id) => tapeFresh?.[id] == null);
   if (!needTape.length && tapeFresh) {
     const merged = applyTapeVolumes(byCoin, missing, tapeFresh);
-    if (merged !== byCoin) volumeCache = { at: now, value: merged };
+    if (merged !== byCoin) {
+      volumeCache = { at: now, value: merged };
+      notifyOutcomeVolumes(merged);
+    }
     return merged;
   }
   if (volumeEnrichInflight) return volumeEnrichInflight;
@@ -764,6 +811,7 @@ async function ensureOutcomeVolumes(
   volumeEnrichInflight = (async () => {
     const nextTape: Record<number, number> = { ...(tapeFresh ?? {}) };
     const chunk = 6;
+    let latest = byCoin;
     for (let i = 0; i < needTape.length; i += chunk) {
       const slice = needTape.slice(i, i + chunk);
       await Promise.all(
@@ -771,11 +819,12 @@ async function ensureOutcomeVolumes(
           nextTape[id] = await tapeNotionalUsd(id);
         }),
       );
+      tapeVolumeCache = { at: Date.now(), value: nextTape };
+      latest = applyTapeVolumes(byCoin, missing, nextTape);
+      volumeCache = { at: Date.now(), value: latest };
+      notifyOutcomeVolumes(latest);
     }
-    tapeVolumeCache = { at: Date.now(), value: nextTape };
-    const next = applyTapeVolumes(byCoin, missing, nextTape);
-    volumeCache = { at: Date.now(), value: next };
-    return next;
+    return latest;
   })();
 
   try {
@@ -1796,6 +1845,22 @@ function clampProb(n: number | null): number | null {
   return Math.min(0.9999, Math.max(0.0001, n));
 }
 
+/** Patch catalog 24h volume after tape enrichment — does not refetch meta. */
+export function overlayListedVolumes(
+  markets: ListedMarket[],
+  byCoin: Record<string, number> | undefined,
+): ListedMarket[] {
+  if (!markets.length || !byCoin) return markets;
+  let changed = false;
+  const next = markets.map((m) => {
+    const volumeUsd = dayVolumeUsd(byCoin, m.outcomeId);
+    if (volumeUsd === m.volumeUsd) return m;
+    changed = true;
+    return { ...m, volumeUsd };
+  });
+  return changed ? next : markets;
+}
+
 /** Patch catalog mids without refetching outcomeMeta / volume. */
 export function overlayListedMids(
   markets: ListedMarket[],
@@ -1826,7 +1891,7 @@ export function overlayListedMids(
   return changed ? next : markets;
 }
 
-/** HIP-4 catalog: `outcomeMeta` + outcome mids/volume. No perp book. */
+/** HIP-4 catalog: `outcomeMeta` + mids. Tape volume is filled in the background. */
 export async function listOutcomes(opts?: {
   filter?: OutcomeFilter;
   force?: boolean;
@@ -1839,7 +1904,10 @@ export async function listOutcomes(opts?: {
     fetchSpotDayNtlByCoin(opts?.force).catch(() => ({} as Record<string, number>)),
   ]);
   const outcomeIds = meta.outcomes.map((row) => row.outcome).filter((id) => id > 0);
-  const volByCoin = await ensureOutcomeVolumes(spotVol, outcomeIds);
+  const volByCoin = mergeCachedVolumes(spotVol, outcomeIds);
+  if (volByCoin !== spotVol) {
+    volumeCache = { at: Date.now(), value: volByCoin };
+  }
 
   const questionByOutcome = new Map<number, OutcomeQuestion>();
   const settledOutcomes = new Set<number>();
@@ -1923,8 +1991,9 @@ export async function listOutcomes(opts?: {
     return (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity);
   });
 
-  if (filter === 'sports') return listed.filter((m) => m.isSports);
-  return listed;
+  const out = filter === 'sports' ? listed.filter((m) => m.isSports) : listed;
+  void ensureOutcomeVolumes(volByCoin, out).catch(() => undefined);
+  return out;
 }
 
 export async function getListedMarket(id: string | number): Promise<ListedMarket | null> {

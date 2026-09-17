@@ -23,6 +23,7 @@
       "@hip4/autoplay": ["../frontend/src/lib/useFeaturedAutoplay.ts"],
       "@hip4/endpoints": ["../frontend/src/lib/hlEndpoints.ts"],
       "@hip4/runtime": ["../frontend/src/lib/hip4Runtime.ts"],
+      "@hip4/volumeSync": ["../frontend/src/lib/useOutcomeVolumeSync.ts"],
       "react": ["./node_modules/@types/react/index.d.ts"],
       "@theme/colors": ["../frontend/src/theme/colors.ts"],
       "@nktkas/hyperliquid": ["./node_modules/@nktkas/hyperliquid/esm/mod.d.ts"],

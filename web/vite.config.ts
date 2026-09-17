@@ -160,6 +160,7 @@ export default defineConfig(({ mode }) => {
         { find: '@hip4/autoplay', replacement: path.join(frontendLib, 'useFeaturedAutoplay.ts') },
         { find: '@hip4/endpoints', replacement: path.join(frontendLib, 'hlEndpoints.ts') },
         { find: '@hip4/runtime', replacement: path.join(frontendLib, 'hip4Runtime.ts') },
+        { find: '@hip4/volumeSync', replacement: path.join(frontendLib, 'useOutcomeVolumeSync.ts') },
         { find: '@theme/colors', replacement: path.resolve(root, '../frontend/src/theme/colors.ts') },
       ],
       conditions: ['import', 'module', 'browser', 'default'],

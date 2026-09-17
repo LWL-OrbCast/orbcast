@@ -45,7 +45,7 @@ import { BottomNavBar } from '../src/components/BottomNavBar';
 import { ClaimBannerRoot } from '../src/components/ClaimTradingCreditBanner';
 import { IncomingFundsBanner } from '../src/components/IncomingFundsBanner';
 import { AppUpdateBanner } from '../src/components/AppUpdateBanner';
-import { OutcomeVolumeSync } from '../src/lib/useOutcomeVolumeSync';
+import { OutcomeVolumeSync } from '../src/hooks/OutcomeVolumeSync';
 // import { checkGeo } from '../src/lib/api';
 import { initAppsFlyerSdk } from '../src/lib/appsFlyerAnalytics';
 import { RootToastHost } from '../src/components/ToastHost';

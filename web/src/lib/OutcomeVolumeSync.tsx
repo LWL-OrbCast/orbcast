@@ -4,11 +4,12 @@ import {
   overlayListedVolumes,
   subscribeOutcomeVolumes,
   type ListedMarket,
-} from './hip4';
+} from '@hip4';
 
 /**
- * Patches every `['hip4', 'outcomes', …]` catalog query when tape volume
- * arrives so first paint does not wait on recentTrades.
+ * Patches `['hip4', 'outcomes']` when tape volume arrives so first paint
+ * does not wait on recentTrades. Lives in web/ so Vercel tsc can resolve
+ * react-query (frontend/src/lib is shared without web node_modules).
  */
 export function OutcomeVolumeSync() {
   const qc = useQueryClient();
@@ -16,7 +17,7 @@ export function OutcomeVolumeSync() {
     return subscribeOutcomeVolumes((byCoin) => {
       qc.setQueriesData<ListedMarket[]>(
         { queryKey: ['hip4', 'outcomes'] },
-        (cur) =>
+        (cur: ListedMarket[] | undefined) =>
           Array.isArray(cur) && cur.length ? overlayListedVolumes(cur, byCoin) : cur,
       );
     });

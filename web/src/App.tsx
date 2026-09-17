@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { WebAuthRoot } from './lib/auth';
 import { BuilderFeeSync } from './lib/builderFee';
-import { OutcomeVolumeSync } from '@hip4/volumeSync';
+import { OutcomeVolumeSync } from './lib/OutcomeVolumeSync';
 import { Shell } from './ui/Shell';
 import { HomePage, MarketsPage } from './ui/catalog';
 import { MarketPage } from './ui/MarketPage';

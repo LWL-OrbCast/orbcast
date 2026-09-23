@@ -7,7 +7,7 @@ export const IS_TESTNET = (import.meta.env.VITE_HL_NETWORK ?? 'mainnet').trim() 
 
 const envBuilder = (import.meta.env.VITE_HL_BUILDER_ADDRESS ?? '').trim();
 export const BUILDER_ADDRESS = (
-  envBuilder || '0x29a1D36DaEE6B0E0Dd4873dd964677000B6e23EB'
+  envBuilder || '0xD2E580FDcBaf787B4eAbdECd25916587492363Ed'
 ) as `0x${string}`;
 
 const envFee = Number(import.meta.env.VITE_HL_BUILDER_FEE_TENTHS_BPS);

@@ -35,7 +35,7 @@ Prefer changes that help the **trader** path: list markets → ticket → sign a
 
 Optional — if you want to support maintenance of this reference app:
 
-`0x29a1D36DaEE6B0E0Dd4873dd964677000B6e23EB`
+`0xD2E580FDcBaf787B4eAbdECd25916587492363Ed`
 
 ## License
 

@@ -142,7 +142,7 @@ HIP-4: [HIP-4](https://hyperliquid.gitbook.io/hyperliquid-docs/hyperliquid-impro
 
 If this reference helps you ship, donations are welcome:
 
-`0x29a1D36DaEE6B0E0Dd4873dd964677000B6e23EB`
+`0xD2E580FDcBaf787B4eAbdECd25916587492363Ed`
 
 ---
 

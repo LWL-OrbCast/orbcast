@@ -22,8 +22,13 @@ export type MarketSymbolKey =
   | 'dram'
   | 'nbis'
   | 'skhx'
+  | 'skhy'
   | 'sndk'
   | 'spcx'
+  | 'meta'
+  | 'intc'
+  | 'crcl'
+  | 'mu'
   | 'lol'
   | 'epl'
   | 'laliga'
@@ -76,8 +81,16 @@ const TICKER_KEY: Record<string, MarketSymbolKey> = {
   dram: 'dram',
   nbis: 'nbis',
   skhx: 'skhx',
+  skhy: 'skhy',
+  skhynix: 'skhy',
   sndk: 'sndk',
   spcx: 'spcx',
+  meta: 'meta',
+  intc: 'intc',
+  intel: 'intc',
+  crcl: 'crcl',
+  mu: 'mu',
+  micron: 'mu',
   pons: 'pons',
 };
 
@@ -107,8 +120,13 @@ const BLOB_TICKER_RE: [RegExp, MarketSymbolKey][] = [
   [/\bdram\b/i, 'dram'],
   [/\bnbis\b/i, 'nbis'],
   [/\bskhx\b/i, 'skhx'],
+  [/\bskhy\b|sk\s*hynix/i, 'skhy'],
   [/\bsndk\b/i, 'sndk'],
   [/\bspcx\b/i, 'spcx'],
+  [/\bmeta\b/i, 'meta'],
+  [/\b(intc|intel)\b/i, 'intc'],
+  [/\bcrcl\b/i, 'crcl'],
+  [/\b(mu|micron)\b/i, 'mu'],
   [/\bpons\b/i, 'pons'],
 ];
 
@@ -123,6 +141,26 @@ export function competitionMarkUri(market: ListedMarket): string | null {
     footballCompetitionLogoUri(fields.competition) ||
     footballCompetitionLogoUri(displayHay(market))
   );
+}
+
+export type CatalogMark =
+  | { kind: 'key'; key: MarketSymbolKey }
+  | { kind: 'remote'; uri: string };
+
+/**
+ * Catalog thumbs. The bundled `uefa` asset is Champions League only —
+ * Europa / Conference / Nations League use the remote league logo so they
+ * do not inherit the UCL mark. Featured chrome already uses fixture.league.logo.
+ */
+export function catalogMarkForMarket(
+  market: ListedMarket,
+  opts?: { questionLevel?: boolean },
+): CatalogMark | null {
+  const key = symbolKeyForMarket(market, opts);
+  const remote = competitionMarkUri(market);
+  if (remote && (key == null || key === 'uefa')) return { kind: 'remote', uri: remote };
+  if (key) return { kind: 'key', key };
+  return null;
 }
 
 /**
@@ -204,7 +242,9 @@ function leagueKey(fields: Record<string, string>, market: ListedMarket): Market
   if (/\bus\s*[- ]?open\b/i.test(hay) && !/\b(golf|pga|surfing|open\s+cup)\b/i.test(hay)) {
     return 'usopen';
   }
-  if (/uefa|champions league|europa league/i.test(hay)) return 'uefa';
+  if (/champions\s*league|\bucl\b/i.test(hay) && !/conference|europa\s*league|nations\s*league/i.test(hay)) {
+    return 'uefa';
+  }
   if (/\bnfl\b|national football league/i.test(hay)) return 'nfl';
   if (/\bmlb\b|major league baseball|\bbaseball\b/i.test(hay)) return 'mlb';
   if (/\bufc\b|\bmma\b/i.test(hay)) return 'ufc';

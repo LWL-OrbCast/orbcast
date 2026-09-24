@@ -161,6 +161,64 @@ const TEAMS: { id: number; names: string[] }[] = [
   { id: 4799, names: ['Torreense', 'SCU Torreense', 'SC Uniao Torreense', 'SC União Torreense'] },
 ];
 
+/** API-Football national team ids — used for UNL / Euro / World Cup chrome. */
+const NATIONAL_TEAMS: { id: number; names: string[] }[] = [
+  { id: 1, names: ['Belgium'] },
+  { id: 2, names: ['France'] },
+  { id: 3, names: ['Croatia'] },
+  { id: 5, names: ['Sweden'] },
+  { id: 9, names: ['Spain'] },
+  { id: 10, names: ['England'] },
+  { id: 14, names: ['Serbia'] },
+  { id: 15, names: ['Switzerland'] },
+  { id: 18, names: ['Iceland'] },
+  { id: 21, names: ['Denmark'] },
+  { id: 24, names: ['Poland'] },
+  { id: 25, names: ['Germany'] },
+  { id: 27, names: ['Portugal'] },
+  { id: 767, names: ['Wales'] },
+  { id: 768, names: ['Italy'] },
+  { id: 769, names: ['Hungary'] },
+  { id: 770, names: ['Czech Republic', 'Czechia'] },
+  { id: 771, names: ['Northern Ireland'] },
+  { id: 772, names: ['Ukraine'] },
+  { id: 773, names: ['Slovakia'] },
+  { id: 774, names: ['Romania'] },
+  { id: 775, names: ['Austria'] },
+  { id: 776, names: ['Republic of Ireland', 'Rep. of Ireland', 'Rep. Of Ireland', 'Ireland'] },
+  { id: 777, names: ['Turkey', 'Türkiye', 'Turkiye'] },
+  { id: 778, names: ['Albania'] },
+  { id: 1090, names: ['Norway'] },
+  { id: 1091, names: ['Slovenia'] },
+  { id: 1093, names: ['Gibraltar'] },
+  { id: 1094, names: ['Armenia'] },
+  { id: 1095, names: ['Kazakhstan'] },
+  { id: 1096, names: ['Azerbaijan'] },
+  { id: 1098, names: ['Faroe Islands'] },
+  { id: 1099, names: ['Finland'] },
+  { id: 1100, names: ['Belarus'] },
+  { id: 1101, names: ['Estonia'] },
+  { id: 1103, names: ['Bulgaria'] },
+  { id: 1104, names: ['Georgia'] },
+  { id: 1105, names: ['North Macedonia', 'FYR Macedonia', 'Macedonia'] },
+  { id: 1107, names: ['Liechtenstein'] },
+  { id: 1108, names: ['Scotland'] },
+  { id: 1109, names: ['Montenegro'] },
+  { id: 1110, names: ['Andorra'] },
+  { id: 1111, names: ['Kosovo'] },
+  { id: 1112, names: ['Malta'] },
+  { id: 1113, names: ['Bosnia and Herzegovina', 'Bosnia & Herzegovina', 'Bosnia'] },
+  { id: 1114, names: ['Moldova'] },
+  { id: 1116, names: ['Israel'] },
+  { id: 1117, names: ['Greece'] },
+  { id: 1118, names: ['Netherlands', 'Holland'] },
+];
+
+export type FootballCrestOpts = {
+  /** Prefer country crests; skip club aliases (Monaco, etc.). */
+  national?: boolean;
+};
+
 /** Bundled symbols — no API-Sports id (placeholder or unverified CDN slot). */
 const LOCAL_TEAMS: { key: string; names: string[] }[] = [
   { key: 'marseille', names: ['Marseille', 'Olympique Marseille', 'Olympique de Marseille'] },
@@ -169,44 +227,63 @@ const LOCAL_TEAMS: { key: string; names: string[] }[] = [
   { key: 'viking', names: ['Viking FK', 'Viking'] },
 ];
 
-export function footballTeamCrest(name: string): { id: number | null; logo: string } | null {
+function bestCrestIn(
+  name: string,
+  rows: { id: number | null; names: string[]; logo: string }[],
+): { id: number | null; logo: string; score: number } | null {
+  let best: { id: number | null; logo: string; score: number } | null = null;
+  for (const row of rows) {
+    for (const alias of row.names) {
+      const score = teamMatchScore(name, alias);
+      if (score <= 0) continue;
+      if (!best || score > best.score) best = { id: row.id, logo: row.logo, score };
+    }
+  }
+  return best;
+}
+
+export function footballTeamCrest(
+  name: string,
+  opts?: FootballCrestOpts,
+): { id: number | null; logo: string } | null {
   const n = name.trim();
   if (!n) return null;
-  let best: { id: number | null; logo: string; score: number } | null = null;
-  for (const row of TEAMS) {
-    for (const alias of row.names) {
-      const score = teamMatchScore(n, alias);
-      if (score <= 0) continue;
-      if (!best || score > best.score) best = { id: row.id, logo: media(row.id), score };
-    }
+  const nationalRows = NATIONAL_TEAMS.map((row) => ({
+    id: row.id,
+    names: row.names,
+    logo: media(row.id),
+  }));
+  if (opts?.national) {
+    const hit = bestCrestIn(n, nationalRows);
+    return hit ? { id: hit.id, logo: hit.logo } : null;
   }
-  for (const row of LOCAL_TEAMS) {
-    for (const alias of row.names) {
-      const score = teamMatchScore(n, alias);
-      if (score <= 0) continue;
-      if (!best || score > best.score) {
-        best = { id: null, logo: `${LOCAL_FOOTBALL_CREST_PREFIX}${row.key}`, score };
-      }
-    }
-  }
-  if (!best) return null;
-  return { id: best.id, logo: best.logo };
+  const clubRows = [
+    ...TEAMS.map((row) => ({ id: row.id, names: row.names, logo: media(row.id) })),
+    ...LOCAL_TEAMS.map((row) => ({
+      id: null as number | null,
+      names: row.names,
+      logo: `${LOCAL_FOOTBALL_CREST_PREFIX}${row.key}`,
+    })),
+  ];
+  const hit = bestCrestIn(n, clubRows);
+  return hit ? { id: hit.id, logo: hit.logo } : null;
 }
 
 export function withFootballTeamCrest<T extends { id: number | null; name: string; logo: string }>(
   team: T,
+  opts?: FootballCrestOpts,
 ): T {
   if (team.logo) return team;
-  const hit = footballTeamCrest(team.name);
+  const hit = footballTeamCrest(team.name, opts);
   if (!hit) return team;
   return { ...team, id: team.id ?? hit.id, logo: hit.logo };
 }
 
 export function withFootballFixtureCrests<
   T extends { home: { id: number | null; name: string; logo: string }; away: { id: number | null; name: string; logo: string } },
->(fx: T): T {
-  const home = withFootballTeamCrest(fx.home);
-  const away = withFootballTeamCrest(fx.away);
+>(fx: T, opts?: FootballCrestOpts): T {
+  const home = withFootballTeamCrest(fx.home, opts);
+  const away = withFootballTeamCrest(fx.away, opts);
   if (home === fx.home && away === fx.away) return fx;
   return { ...fx, home, away };
 }

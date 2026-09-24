@@ -1,7 +1,8 @@
 /**
  * Stadium chrome for football contests (EPL / La Liga / Serie A / UEFA club
- * crests via the server overlay; HIP-4 kickoff if the fixture is not in the board).
- * Types only — no Expo `api` client, so Vite can import this file.
+ * overlay + static UNL / Euro / World Cup national crests). HIP-4 kickoff
+ * if the fixture is not in the board. Types only — no Expo `api` client,
+ * so Vite can import this file.
  */
 import { marketSpecFields, type ListedMarket } from './hip4';
 import {
@@ -105,6 +106,11 @@ const LEAGUE_MEDIA: Record<number, { id: number; name: string; logo: string }> =
     name: 'Ligue 1',
     logo: 'https://media.api-sports.io/football/leagues/61.png',
   },
+  5: {
+    id: 5,
+    name: 'UEFA Nations League',
+    logo: 'https://media.api-sports.io/football/leagues/5.png',
+  },
 };
 
 export function footballLeagueFromCompetition(competition: string): {
@@ -119,6 +125,9 @@ export function footballLeagueFromCompetition(competition: string): {
   if (/la\s*liga|laliga|spanish\s*primera/.test(s)) return LEAGUE_MEDIA[140];
   if (/serie\s*a|seria\s*a/.test(s)) return LEAGUE_MEDIA[135];
   if (/premier\s*league|\bepl\b|english\s*premier/.test(s)) return LEAGUE_MEDIA[39];
+  if (/nations\s*league|\bunl\b/.test(s) && !/six\s*nations/.test(s)) {
+    return LEAGUE_MEDIA[5];
+  }
   if (/conference\s*league|\buecl\b/.test(s)) return LEAGUE_MEDIA[848];
   if (/europa\s*league|\buel\b/.test(s)) return LEAGUE_MEDIA[3];
   if (/champions\s*league|\bucl\b/.test(s)) return LEAGUE_MEDIA[2];
@@ -129,6 +138,17 @@ export function footballLeagueFromCompetition(competition: string): {
 export function footballCompetitionLogoUri(competition: string | undefined): string | null {
   const logo = footballLeagueFromCompetition(competition ?? '').logo;
   return logo || null;
+}
+
+/** National-team books (UNL / Euro / World Cup) — not rugby Six Nations. */
+export function isNationalFootballCompetition(...parts: Array<string | undefined>): boolean {
+  const s = parts.filter(Boolean).join(' ').toLowerCase();
+  if (!s || /six\s*nations/.test(s)) return false;
+  return (
+    /nations\s*league|\bunl\b/.test(s) ||
+    /european\s*championship|\beuros?\b/.test(s) ||
+    /(?:fifa\s+)?world\s*cup/.test(s)
+  );
 }
 
 export function boardFixtures(board?: FootballBoard | null): FootballFixture[] {
@@ -161,7 +181,9 @@ export function syntheticFootballFixture(m: ListedMarket): FootballFixture | nul
   if (!pair) return null;
   const [a, b] = pair;
   const fields = marketSpecFields(m);
-  const league = footballLeagueFromCompetition(fields.competition ?? '');
+  const competition = fields.competition ?? '';
+  const league = footballLeagueFromCompetition(competition);
+  const national = isNationalFootballCompetition(competition, m.title);
   const live = m.status === 'live';
   const finished = m.status === 'settled';
   return {
@@ -172,8 +194,8 @@ export function syntheticFootballFixture(m: ListedMarket): FootballFixture | nul
     elapsed: null,
     live,
     finished,
-    home: withFootballTeamCrest({ id: null, name: a, logo: '' }),
-    away: withFootballTeamCrest({ id: null, name: b, logo: '' }),
+    home: withFootballTeamCrest({ id: null, name: a, logo: '' }, { national }),
+    away: withFootballTeamCrest({ id: null, name: b, logo: '' }, { national }),
     goals: { home: null, away: null },
     league: { ...league, round: '' },
     venue: '',
@@ -289,5 +311,7 @@ export function footballChromeFixture(
 ): FootballFixture | null {
   if (!isFootballContestMarket(m)) return null;
   const fx = fixtureForMarket(fixtures, m) ?? syntheticFootballFixture(m);
-  return fx ? withFootballFixtureCrests(fx) : null;
+  const fields = marketSpecFields(m);
+  const national = isNationalFootballCompetition(fields.competition, m.title);
+  return fx ? withFootballFixtureCrests(fx, { national }) : null;
 }

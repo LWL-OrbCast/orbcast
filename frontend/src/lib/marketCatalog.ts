@@ -355,7 +355,12 @@ function competitionAligns(book: string, league: string): boolean {
   const b = league.toLowerCase();
   if (!a.trim() || !b.trim()) return false;
   if (a.includes(b) || b.includes(a)) return true;
-  if (/champions|\bucl\b/.test(a) && /champions|\bucl\b/.test(b)) return true;
+  if (/nations\s*league|\bunl\b/.test(a) && /nations\s*league|\bunl\b/.test(b)) {
+    return true;
+  }
+  if (/champions|\bucl\b/.test(a) && /champions|\bucl\b/.test(b) && !/conference|europa\s*league|nations\s*league/.test(a + b)) {
+    return true;
+  }
   if (/conference|\buecl\b/.test(a) && /conference|\buecl\b/.test(b)) return true;
   if (/europa|\buel\b/.test(a) && /europa|\buel\b/.test(b) && !/conference/.test(a + b)) {
     return true;

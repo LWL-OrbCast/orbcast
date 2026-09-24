@@ -1,8 +1,7 @@
 import type { ListedMarket } from '@hip4';
 import { catalogChipForMarket } from '@hip4/catalog';
 import {
-  competitionMarkUri,
-  symbolKeyForMarket,
+  catalogMarkForMarket,
   symbolObjectFit,
   type MarketSymbolKey,
 } from '@hip4/symbol';
@@ -23,6 +22,11 @@ import nbis from '../../../frontend/assets/images/symbols/nbis-icon.webp';
 import skhx from '../../../frontend/assets/images/symbols/skhx-icon.webp';
 import sndk from '../../../frontend/assets/images/symbols/sndk-icon.webp';
 import spcx from '../../../frontend/assets/images/symbols/spcx-icon.webp';
+import skhy from '../../../frontend/assets/images/symbols/skhy.webp';
+import meta from '../../../frontend/assets/images/symbols/meta.webp';
+import intc from '../../../frontend/assets/images/symbols/intel.webp';
+import crcl from '../../../frontend/assets/images/symbols/crcl.webp';
+import mu from '../../../frontend/assets/images/symbols/micron.webp';
 import lol from '../../../frontend/assets/images/symbols/lol-icon.webp';
 import epl from '../../../frontend/assets/images/symbols/epl-icon.webp';
 import laliga from '../../../frontend/assets/images/symbols/laliga-icon.webp';
@@ -59,6 +63,11 @@ const SYMBOL_SRC: Record<MarketSymbolKey, string> = {
   skhx,
   sndk,
   spcx,
+  skhy,
+  meta,
+  intc,
+  crcl,
+  mu,
   lol,
   epl,
   laliga,
@@ -121,21 +130,20 @@ export function MarketSymbol({
   questionLevel?: boolean;
   className?: string;
 }) {
-  const key = symbolKeyForMarket(market, { questionLevel });
-  if (key) {
+  const mark = catalogMarkForMarket(market, { questionLevel });
+  if (mark?.kind === 'key') {
     return (
       <MarkImg
-        src={SYMBOL_SRC[key]}
+        src={SYMBOL_SRC[mark.key]}
         size={size}
         className={className}
-        fit={symbolObjectFit(key)}
-        dark={key === 'ufc'}
+        fit={symbolObjectFit(mark.key)}
+        dark={mark.key === 'ufc'}
       />
     );
   }
-  const remote = competitionMarkUri(market);
-  if (remote) {
-    return <MarkImg src={remote} size={size} className={className} fit="contain" />;
+  if (mark?.kind === 'remote') {
+    return <MarkImg src={mark.uri} size={size} className={className} fit="contain" />;
   }
   return (
     <span

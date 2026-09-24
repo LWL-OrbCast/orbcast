@@ -3,8 +3,7 @@ import { Image, StyleSheet, View, type ImageSourcePropType, type StyleProp, type
 import { Ionicons } from '@expo/vector-icons';
 import type { ListedMarket } from '../../lib/hip4';
 import {
-  competitionMarkUri,
-  symbolKeyForMarket,
+  catalogMarkForMarket,
   symbolObjectFit,
   type MarketSymbolKey,
 } from '../../lib/marketSymbol';
@@ -27,6 +26,11 @@ const SYMBOL_SOURCE: Record<MarketSymbolKey, ImageSourcePropType> = {
   skhx: require('../../../assets/images/symbols/skhx-icon.webp'),
   sndk: require('../../../assets/images/symbols/sndk-icon.webp'),
   spcx: require('../../../assets/images/symbols/spcx-icon.webp'),
+  skhy: require('../../../assets/images/symbols/skhy.webp'),
+  meta: require('../../../assets/images/symbols/meta.webp'),
+  intc: require('../../../assets/images/symbols/intel.webp'),
+  crcl: require('../../../assets/images/symbols/crcl.webp'),
+  mu: require('../../../assets/images/symbols/micron.webp'),
   lol: require('../../../assets/images/symbols/lol-icon.webp'),
   epl: require('../../../assets/images/symbols/epl-icon.webp'),
   laliga: require('../../../assets/images/symbols/laliga-icon.webp'),
@@ -115,13 +119,12 @@ export function MarketSymbol({
   glyphSize?: number;
   questionLevel?: boolean;
 }) {
-  const key = symbolKeyForMarket(market, { questionLevel });
-  if (key) {
-    return <SymbolImage symbolKey={key} size={size} radius={radius} style={style} />;
+  const mark = catalogMarkForMarket(market, { questionLevel });
+  if (mark?.kind === 'key') {
+    return <SymbolImage symbolKey={mark.key} size={size} radius={radius} style={style} />;
   }
-  const remote = competitionMarkUri(market);
-  if (remote) {
-    return <RemoteMark uri={remote} size={size} radius={radius} style={style} />;
+  if (mark?.kind === 'remote') {
+    return <RemoteMark uri={mark.uri} size={size} radius={radius} style={style} />;
   }
   const r = radius ?? Math.round(size * 0.32);
   return (

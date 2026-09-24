@@ -2,6 +2,7 @@
 
 Domestic: EPL (39), La Liga (140), Serie A (135).
 UEFA club: Champions League (2), Europa League (3), Conference League (848).
+UEFA national: Nations League (5).
 The key stays on the server; the app never sees it. Odds / predictions
 endpoints are unused — price lives on HIP-4.
 """
@@ -30,6 +31,7 @@ SERIE_A_LEAGUE_ID = 135
 UCL_LEAGUE_ID = 2
 UEL_LEAGUE_ID = 3
 UECL_LEAGUE_ID = 848
+UNL_LEAGUE_ID = 5
 LEAGUES: Dict[int, Dict[str, str]] = {
     EPL_LEAGUE_ID: {
         "name": "Premier League",
@@ -55,6 +57,10 @@ LEAGUES: Dict[int, Dict[str, str]] = {
         "name": "UEFA Europa Conference League",
         "logo": "https://media.api-sports.io/football/leagues/848.png",
     },
+    UNL_LEAGUE_ID: {
+        "name": "UEFA Nations League",
+        "logo": "https://media.api-sports.io/football/leagues/5.png",
+    },
 }
 LIVE_LEAGUE_IDS = "-".join(str(i) for i in LEAGUES)
 LIVE_TTL_SEC = 90.0
@@ -72,7 +78,7 @@ PL_LOGO = LEAGUES[EPL_LEAGUE_ID]["logo"]
 _ENV_PATH = Path(__file__).parent / ".env"
 
 # Process-local first; shared JSON in `news_cache` key `sports:football:board`
-# League set: 39-140-135-2-3-848. Cache rejects boards missing leagueIds.
+# League set: 39-140-135-2-3-848-5. Cache rejects boards missing leagueIds.
 # so N Railway replicas do not each spend API-Football on the same miss.
 # Phone → /api/sports/* does not count; only v3.football.api-sports.io calls do.
 _BOARD_CACHE_KEY = "sports:football:board"
@@ -284,6 +290,7 @@ _FEATURED_LEAGUE_RANK = {
     SERIE_A_LEAGUE_ID: 3,
     UEL_LEAGUE_ID: 4,
     UECL_LEAGUE_ID: 5,
+    UNL_LEAGUE_ID: 6,
 }
 
 

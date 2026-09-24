@@ -41,7 +41,7 @@ Do not rename the catalog view to `'live'`. That string already means in-play on
 | [README.md](./README.md) | Orientation |
 | [AGENT_PROMPT.md](./AGENT_PROMPT.md) | First-sprint order + HIP-4 facts to re-verify |
 | [docs/HIP4.md](./docs/HIP4.md) | Venues, Outcome.xyz vs trade.xyz |
-| [docs/SPORTS.md](./docs/SPORTS.md) | Football overlay (EPL / La Liga / Serie A / UEFA club): API-Sports chrome, quota, key stays on server |
+| [docs/SPORTS.md](./docs/SPORTS.md) | Football overlay (EPL / La Liga / Serie A / UEFA club / Nations League): API-Sports chrome, quota, key stays on server |
 | [docs/SETUP.md](./docs/SETUP.md) | Local / deploy bootstrap |
 | [docs/DATABASE.md](./docs/DATABASE.md) | Which tables this app uses |
 | [docs/HL_BUILDER.md](./docs/HL_BUILDER.md) | Builder fee, Bridge2 |
@@ -87,7 +87,7 @@ frontend/                 Expo Router app
 web/                      Vite + React 19 desktop app (port 5173)
 backend/
   server.py               FastAPI — wallet, rewards, push, geo, sports overlay
-  sports_football.py      API-Sports football chrome — EPL / La Liga / Serie A / UEFA club (not odds)
+  sports_football.py      API-Sports football chrome — EPL / La Liga / Serie A / UEFA club / Nations League (not odds)
   rewards.py              Points / referrals
 docs/                     Human + agent documentation
 ```
@@ -113,7 +113,7 @@ Large single module. Jump by route prefix (`/api/health`, `/api/sports/football/
 7. **DB** — follow [DATABASE.md](./docs/DATABASE.md). Do not invent tables that fight deny-all RLS.
 8. **Relayer** — new EOAs for this app. Do not reuse another product’s relayer keys (nonce wars).
 9. **Trust live `outcomeMeta`** — do not hardcode docs deployer addresses. `settleQuestion` was replaced by `settleQuestion2`.
-10. **Sports chrome ≠ the book** — API-Sports is fixtures/score only (EPL / La Liga / Serie A / UEFA club). Soccer and NFL are different products (`sportsCatalog.ts` / `sports_api.py`). Do not show their odds next to HIP-4 mids. Key is `API_SPORTS_KEY` on the server; never Expo. Overlay `finished` (`FT` etc.) hides contest books from All / Football / search / featured — a held order does not keep them there. Positions and a direct `/market/:id` stay. That is **not** HIP-4 settlement. See [SPORTS.md](./docs/SPORTS.md).
+10. **Sports chrome ≠ the book** — API-Sports is fixtures/score only (EPL / La Liga / Serie A / UEFA club / Nations League). Soccer and NFL are different products (`sportsCatalog.ts` / `sports_api.py`). Do not show their odds next to HIP-4 mids. Key is `API_SPORTS_KEY` on the server; never Expo. Overlay `finished` (`FT` etc.) hides contest books from All / Football / search / featured — a held order does not keep them there. Positions and a direct `/market/:id` stay. That is **not** HIP-4 settlement. See [SPORTS.md](./docs/SPORTS.md).
 
 ---
 
